@@ -1,16 +1,20 @@
 name: artic-rampart
 channels:
-  - bioconda
   - conda-forge
   - defaults
 dependencies:
-  - "python>=3"
-  - "nodejs=20.7.0"
-  - snakemake-minimal=5.8.1
-  - biopython=1.74
-  - minimap2=2.17
+  - python>=3.9
+  - nodejs>=18
   - pip:
-    - git+https://github.com/artic-network/Porechop.git@v0.3.2pre
-    - binlorry==1.3.0_alpha1
+    - mappy>=2.24
+
+# Note: nodejs is only needed for development.
+# For users, only Python 3.9+ and mappy are required.
+# 
+# Simpler alternative without conda:
+#   1. Ensure Python 3.9+ is installed
+#   2. pip install mappy
+
+
 
 

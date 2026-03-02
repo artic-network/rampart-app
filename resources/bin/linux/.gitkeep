@@ -1,0 +1,8 @@
+# Placeholder for Linux minimap2 binary
+# Download from: https://github.com/lh3/minimap2/releases
+# 
+# Quick setup:
+#   wget https://github.com/lh3/minimap2/releases/download/v2.27/minimap2-2.27_x64-linux.tar.bz2
+#   tar -xjf minimap2-2.27_x64-linux.tar.bz2
+#   cp minimap2-2.27_x64-linux/minimap2 resources/bin/linux/
+#   chmod +x resources/bin/linux/minimap2

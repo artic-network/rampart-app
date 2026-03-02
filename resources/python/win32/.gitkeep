@@ -1,0 +1,12 @@
+# Placeholder for Windows Python embeddable package
+# This is OPTIONAL - only needed for fully self-contained Windows builds
+# 
+# Download from: https://www.python.org/downloads/windows/
+# Get: Python 3.12.x embeddable package (64-bit)
+# 
+# Quick setup:
+#   ./scripts/prepare-windows-bundle.sh
+# 
+# Or manually follow: resources/python/README.md
+#
+# If you skip this, Windows users will need to install Python/conda separately

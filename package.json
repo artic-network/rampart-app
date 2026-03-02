@@ -91,9 +91,20 @@
       "build/**/*",
       "server/**/*",
       "src/electron.js",
+      "src/preload.js",
       "default_protocol/**/*",
       "node_modules/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin/${os}",
+        "to": "resources/bin/${os}",
+        "filter": ["**/*"]
+      }
+    ],
+    "asarUnpack": [
+      "resources/**/*"
     ],
     "directories": {
       "buildResources": "public"
@@ -147,7 +158,14 @@
           ]
         }
       ],
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "extraResources": [
+        {
+          "from": "resources/python/win32",
+          "to": "resources/python/win32",
+          "filter": ["**/*"]
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,

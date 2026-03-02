@@ -17,6 +17,7 @@ const electron = require('electron');
 const app = electron.app;
 // Module to create native browser window.
 const BrowserWindow = electron.BrowserWindow;
+const { ipcMain, dialog } = electron;
 
 const path = require('path');
 const url = require('url');
@@ -32,6 +33,39 @@ const Datastore = require("../server/datastore").default;
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 let serverPort = 3555; // Default port for Electron mode
+let serverStarted = false;
+let userSettings = null;
+
+// Settings file path
+const settingsPath = path.join(app.getPath('userData'), 'rampart-settings.json');
+
+// Load settings from file
+function loadSettings() {
+    try {
+        if (fs.existsSync(settingsPath)) {
+            const data = fs.readFileSync(settingsPath, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (err) {
+        console.error('Error loading settings:', err);
+    }
+    return null;
+}
+
+// Save settings to file
+function saveSettings(settings) {
+    try {
+        const dir = path.dirname(settingsPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+        return true;
+    } catch (err) {
+        console.error('Error saving settings:', err);
+        return false;
+    }
+}
 
 // Create a temporary directory structure for RAMPART if not configured
 function ensureRampartDirectories() {
@@ -48,17 +82,18 @@ function ensureRampartDirectories() {
     return { basecalledDir, annotatedDir };
 }
 
-async function startServer() {
-    // Set up directories
-    const { basecalledDir, annotatedDir } = ensureRampartDirectories();
-    
-    // Set up config for Electron mode with default paths
+async function startServer(settings) {
+    // Set up config for Electron mode with user settings
     const args = {
-        verbose: false,
+        verbose: settings.verbose || false,
         devClient: false,
         ports: [serverPort, serverPort + 1],
-        basecalledPath: basecalledDir,
-        annotatedPath: annotatedDir
+        basecalledPath: settings.basecalledPath,
+        annotatedPath: settings.annotatedPath || './annotations',
+        protocol: settings.protocol,
+        title: settings.title,
+        referencesPath: settings.referencesPath,
+        clearAnnotated: settings.clearAnnotated || false
     };
     
     try {
@@ -77,6 +112,7 @@ async function startServer() {
         }
         await startBasecalledFilesWatcher();
         
+        serverStarted = true;
         return true;
     } catch (err) {
         console.error("Failed to start server:", err);
@@ -84,7 +120,7 @@ async function startServer() {
     }
 }
 
-function createWindow() {
+function createWindow(showSettings = true) {
     console.log('createWindow() called');
     try {
         console.log('Creating BrowserWindow...');
@@ -95,26 +131,24 @@ function createWindow() {
             show: true,  // Explicitly show
             webPreferences: {
                 nodeIntegration: false,
-                contextIsolation: true
+                contextIsolation: true,
+                preload: path.join(__dirname, 'preload.js')
             },
             title: 'RAMPART'
         });
         console.log('BrowserWindow created');
 
-        // Load a placeholder first - don't try to load app until server is ready
-        console.log('Loading placeholder page...');
-        mainWindow.loadURL('data:text/html,<html><body><h1>RAMPART Starting...</h1><p>Please wait while the server starts</p></body></html>');
-
-        // Don't load the app yet - we'll do that after server starts
-        // Store startUrl for later
-        const isDev = process.env.NODE_ENV === 'development';
-        const startUrl = isDev 
-            ? 'http://localhost:3000'
-            : `http://localhost:${serverPort}`;
-        mainWindow.rampartUrl = startUrl;
+        if (showSettings) {
+            // Load the settings page first
+            console.log('Loading settings page...');
+            mainWindow.loadFile(path.join(__dirname, '../public/settings.html'));
+        } else {
+            // Load the main RAMPART app
+            loadMainApp();
+        }
 
         // Open DevTools in development
-        if (isDev) {
+        if (process.env.NODE_ENV === 'development') {
             mainWindow.webContents.openDevTools();
         }
 
@@ -160,30 +194,62 @@ function createWindow() {
     return mainWindow;
 }
 
+function loadMainApp() {
+    if (!mainWindow) return;
+    
+    const isDev = process.env.NODE_ENV === 'development';
+    const startUrl = isDev 
+        ? 'http://localhost:3000'
+        : `http://localhost:${serverPort}`;
+    
+    console.log(`Loading RAMPART app from: ${startUrl}`);
+    mainWindow.loadURL(startUrl);
+}
+
+// IPC Handlers for settings page
+ipcMain.handle('load-settings', async () => {
+    return loadSettings();
+});
+
+ipcMain.handle('select-path', async (event, isFile) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: isFile ? ['openFile'] : ['openDirectory']
+    });
+    
+    return result.canceled ? null : result.filePaths[0];
+});
+
+ipcMain.on('start-server', async (event, settings) => {
+    console.log('Received start-server request with settings:', settings);
+    
+    // Save settings for next time
+    userSettings = settings;
+    saveSettings(settings);
+    
+    // Show loading state
+    mainWindow.loadURL('data:text/html,<html><body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"><div style="text-align: center; color: white;"><h1>Starting RAMPART...</h1><p>Initializing server and loading data...</p></div></body></html>');
+    
+    // Start the server
+    const success = await startServer(settings);
+    
+    if (success) {
+        console.log('Server started successfully, loading main app...');
+        // Give server a moment to fully initialize
+        setTimeout(() => {
+            loadMainApp();
+        }, 1000);
+    } else {
+        console.error('Failed to start server');
+        mainWindow.loadURL('data:text/html,<html><body style="font-family: sans-serif; padding: 40px;"><h1 style="color: #c33;">Error</h1><p>Failed to start RAMPART server. Please check your settings and try again.</p><button onclick="history.back()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">Go Back</button></body></html>');
+    }
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on('ready', async () => {
     console.log('App ready event fired');
-    console.log('Creating window...');
-    createWindow();
-    console.log('Window created with placeholder');
-    
-    console.log('Starting RAMPART server...');
-    const serverStarted = await startServer();
-    
-    if (serverStarted) {
-        console.log(`Server running on port ${serverPort}`);
-        console.log('Loading RAMPART app into window...');
-        if (mainWindow && mainWindow.rampartUrl) {
-            mainWindow.loadURL(mainWindow.rampartUrl);
-            console.log(`App loading from: ${mainWindow.rampartUrl}`);
-        }
-    } else {
-        console.error('Failed to start server.');
-        if (mainWindow) {
-            mainWindow.loadURL('data:text/html,<html><body><h1>Error</h1><p>Failed to start RAMPART server</p></body></html>');
-        }
-    }
+    console.log('Creating settings window...');
+    createWindow(true); // Show settings page first
 });
 
 app.on('activate', function () {

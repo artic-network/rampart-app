@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAMPART - Initial Setup</title>
+    <style>
+        @font-face {
+            font-family: 'Lato';
+            src: url('../src/styles/LatoLatin-Regular.woff') format('woff');
+            font-weight: bold;
+        }
+        
+        @font-face {
+            font-family: 'Lato';
+            src: url('../src/styles/LatoLatin-Hairline.woff') format('woff');
+            font-weight: 100;
+        }
+        
+        @font-face {
+            font-family: 'Lato';
+            src: url('../src/styles/LatoLatin-Light.woff') format('woff');
+            font-weight: normal;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Lato", serif;
+            font-weight: normal;
+            background: #02292e; /* articGreenDark */
+            color: #F6EECA; /* articYellow */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            background: #005c68; /* articGreen */
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+            border: 1px solid #22968B; /* articGreenLight */
+        }
+        
+        h1 {
+            color: #F6EECA; /* articYellow */
+            margin-bottom: 10px;
+            font-size: 2em;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            color: #E6DFC1; /* articYellowGrey */
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #F6EECA; /* articYellow */
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .help-text {
+            display: block;
+            margin-bottom: 8px;
+            color: #E6DFC1; /* articYellowGrey */
+            font-size: 12px;
+        }
+        
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #22968B; /* articGreenLight */
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: "Lato", serif;
+            background: #02292e; /* articGreenDark */
+            color: #F6EECA; /* articYellow */
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #5097BA; /* articBlue */
+        }
+        
+        input[type="text"]::placeholder {
+            color: #7a9da8;
+            opacity: 0.8;
+        }
+        
+        .path-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .path-input-group input {
+            flex: 1;
+        }
+        
+        .browse-btn {
+            padding: 12px 20px;
+            background: #5097BA; /* articBlue */
+            color: #fffcf2; /* articWhite */
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: "Lato", serif;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        
+        .browse-btn:hover {
+            background: #6ba7c5;
+            transform: translateY(-1px);
+        }
+        
+        .browse-btn:active {
+            transform: translateY(0);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #5097BA; /* articBlue */
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 35px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: "Lato", serif;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #22968B; /* articGreenLight */
+            color: #fffcf2; /* articWhite */
+        }
+        
+        .btn-primary:hover {
+            background: #2aa89c;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 150, 139, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: #333330; /* articGreyDark */
+            color: #F6EECA; /* articYellow */
+            border: 1px solid #22968B; /* articGreenLight */
+        }
+        
+        .btn-secondary:hover {
+            background: #444440;
+        }
+        
+        .status-message {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .status-message.error {
+            background: #803c38; /* articRedDark */
+            color: #fffcf2; /* articWhite */
+            border: 1px solid #e06962; /* articRed */
+        }
+        
+        .status-message.success {
+            background: #22968B; /* articGreenLight */
+            color: #fffcf2; /* articWhite */
+            border: 1px solid #2aa89c;
+        }
+        
+        .advanced-toggle {
+            color: #5097BA; /* articBlue */
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+        
+        .advanced-toggle:hover {
+            text-decoration: underline;
+        }
+        
+        .advanced-options {
+            display: none;
+        }
+        
+        .advanced-options.show {
+            display: block;
+        }
+        
+        a {
+            color: #5097BA; /* articBlue */
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RAMPART Initial Setup</h1>
+        <p class="subtitle">Configure your sequencing run settings</p>
+        
+        <div id="statusMessage" class="status-message"></div>
+        
+        <form id="settingsForm">
+            <div class="form-group">
+                <label for="title">Run Title</label>
+                <span class="help-text">A descriptive name for this sequencing run</span>
+                <input type="text" id="title" name="title" placeholder="e.g., EBOV Run 2026-03-02">
+            </div>
+            
+            <div class="form-group">
+                <label for="basecalledPath">Basecalled FASTQ Directory *</label>
+                <span class="help-text">Directory containing basecalled FASTQ files from MinKNOW</span>
+                <div class="path-input-group">
+                    <input type="text" id="basecalledPath" name="basecalledPath" placeholder="/path/to/fastq/pass" required>
+                    <button type="button" class="browse-btn" onclick="browsePath('basecalledPath')">Browse</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="annotatedPath">Output Directory</label>
+                <span class="help-text">Where annotation CSV files will be saved (default: ./annotations)</span>
+                <div class="path-input-group">
+                    <input type="text" id="annotatedPath" name="annotatedPath" placeholder="./annotations">
+                    <button type="button" class="browse-btn" onclick="browsePath('annotatedPath')">Browse</button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="protocol">Protocol Directory</label>
+                <span class="help-text">Path to custom protocol (leave empty to use default)</span>
+                <div class="path-input-group">
+                    <input type="text" id="protocol" name="protocol" placeholder="Leave empty for default protocol">
+                    <button type="button" class="browse-btn" onclick="browsePath('protocol')">Browse</button>
+                </div>
+            </div>
+            
+            <a class="advanced-toggle" onclick="toggleAdvanced()">▸ Advanced Options</a>
+            
+            <div id="advancedOptions" class="advanced-options">
+                <div class="form-group">
+                    <label for="referencesPath">References FASTA File</label>
+                    <span class="help-text">Path to reference sequences panel</span>
+                    <div class="path-input-group">
+                        <input type="text" id="referencesPath" name="referencesPath" placeholder="e.g., references.fasta">
+                        <button type="button" class="browse-btn" onclick="browsePath('referencesPath', true)">Browse</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="clearAnnotated" name="clearAnnotated">
+                        <label for="clearAnnotated" style="margin-bottom: 0;">Clear existing annotations on startup</label>
+                    </div>
+                    <span class="help-text">Remove annotation files present when RAMPART starts</span>
+                </div>
+                
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="verbose" name="verbose">
+                        <label for="verbose" style="margin-bottom: 0;">Verbose logging</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button type="button" class="btn btn-secondary" onclick="loadDefaults()">Use Defaults</button>
+                <button type="submit" class="btn btn-primary">Start RAMPART</button>
+            </div>
+        </form>
+    </div>
+    
+    <script>
+        function toggleAdvanced() {
+            const options = document.getElementById('advancedOptions');
+            const toggle = document.querySelector('.advanced-toggle');
+            options.classList.toggle('show');
+            toggle.textContent = options.classList.contains('show') ? '▾ Advanced Options' : '▸ Advanced Options';
+        }
+        
+        function browsePath(fieldId, isFile = false) {
+            window.electronAPI.selectPath(isFile).then(path => {
+                if (path) {
+                    document.getElementById(fieldId).value = path;
+                }
+            });
+        }
+        
+        function loadDefaults() {
+            document.getElementById('title').value = 'RAMPART Run ' + new Date().toISOString().split('T')[0];
+            document.getElementById('basecalledPath').value = '';
+            document.getElementById('annotatedPath').value = './annotations';
+            document.getElementById('protocol').value = '';
+            document.getElementById('referencesPath').value = '';
+            document.getElementById('clearAnnotated').checked = false;
+            document.getElementById('verbose').checked = false;
+        }
+        
+        function showMessage(message, type) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+        }
+        
+        // Load saved settings on startup
+        window.addEventListener('DOMContentLoaded', () => {
+            window.electronAPI.loadSettings().then(settings => {
+                if (settings) {
+                    if (settings.title) document.getElementById('title').value = settings.title;
+                    if (settings.basecalledPath) document.getElementById('basecalledPath').value = settings.basecalledPath;
+                    if (settings.annotatedPath) document.getElementById('annotatedPath').value = settings.annotatedPath;
+                    if (settings.protocol) document.getElementById('protocol').value = settings.protocol;
+                    if (settings.referencesPath) document.getElementById('referencesPath').value = settings.referencesPath;
+                    if (settings.clearAnnotated) document.getElementById('clearAnnotated').checked = settings.clearAnnotated;
+                    if (settings.verbose) document.getElementById('verbose').checked = settings.verbose;
+                }
+            });
+        });
+        
+        // Handle form submission
+        document.getElementById('settingsForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const basecalledPath = document.getElementById('basecalledPath').value.trim();
+            if (!basecalledPath) {
+                showMessage('Please specify a basecalled FASTQ directory', 'error');
+                return;
+            }
+            
+            const settings = {
+                title: document.getElementById('title').value || undefined,
+                basecalledPath: basecalledPath,
+                annotatedPath: document.getElementById('annotatedPath').value || './annotations',
+                protocol: document.getElementById('protocol').value || undefined,
+                referencesPath: document.getElementById('referencesPath').value || undefined,
+                clearAnnotated: document.getElementById('clearAnnotated').checked,
+                verbose: document.getElementById('verbose').checked
+            };
+            
+            showMessage('Starting RAMPART server...', 'success');
+            window.electronAPI.startServer(settings);
+        });
+    </script>
+</body>
+</html>

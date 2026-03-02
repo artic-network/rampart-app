@@ -1,0 +1,10 @@
+# Placeholder for Windows minimap2 binary
+# Download from: https://github.com/lh3/minimap2/releases
+# Extract minimap2.exe to this directory before building Windows app
+# 
+# Quick setup:
+#   ./scripts/prepare-windows-bundle.sh
+# 
+# Or manually:
+#   Download: minimap2-2.27_x64-win.zip
+#   Extract: minimap2.exe → here

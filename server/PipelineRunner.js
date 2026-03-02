@@ -17,6 +17,7 @@ const { spawn } = require('child_process');
 const Deque = require("collections/deque");
 var kill = require('tree-kill');
 const { verbose, warn } = require("./utils");
+const { getPythonPath, getPythonEnv } = require("./bundledResources");
 
 const sendCurrentPipelineStatuses = () => {
     Object.values(global.pipelineRunners).forEach((r) => r._resendLastMessage());
@@ -37,7 +38,9 @@ class PipelineRunner {
      */
     constructor({config, onSuccess=false, queue=false}) {
         this._name = config.name;
+        this._type = config.type || 'snakemake'; // 'snakemake' or 'python'
         this._snakefile = config.path + "Snakefile";
+        this._pythonScript = config.script ? config.path + config.script : null;
         this._configfile = config.config_file ?
             config.path + config.config_file :
             false;
@@ -138,13 +141,17 @@ class PipelineRunner {
     }
 
     /**
-     * private method to actually spawn a Snakemake pipeline and capture output.
-     * @param {Object} job snakemake config key-value pairs
+     * private method to actually spawn a Snakemake pipeline or Python script and capture output.
+     * @param {Object} job snakemake config key-value pairs or script arguments
      * @returns {Promise<*>}
      * @private
      */
     async _runPipeline(job) {
         return new Promise((resolve, reject) => {
+            
+            if (this._type === 'python') {
+                return this._runPythonScript(job, resolve, reject);
+            }
 
             let pipelineConfig = {}; // what snakemake's going to receive via `--config`
             // add in any (optional) configuration options defined for the entire pipeline
@@ -170,7 +177,14 @@ class PipelineRunner {
 
             this._sendMessage("start", job.name || "");
 
-            this._process = spawn('snakemake', spawnArgs);
+            // Use the artic-rampart-mpxv conda environment PATH
+            const spawnEnv = {
+                ...process.env,
+                PATH: `/opt/miniconda3/envs/artic-rampart-mpxv/bin:${process.env.PATH}`,
+                CONDA_DEFAULT_ENV: 'artic-rampart-mpxv',
+                CONDA_PREFIX: '/opt/miniconda3/envs/artic-rampart-mpxv'
+            };
+            this._process = spawn('snakemake', spawnArgs, { env: spawnEnv });
 
             const out = [];
             this._process.stdout.on(
@@ -215,6 +229,103 @@ class PipelineRunner {
                     reject(`pipeline (${this._name}) finished with exit code ${code}`);
                 }
             });
+        });
+    }
+
+    /**
+     * private method to run a Python script directly
+     * @param {Object} job script arguments
+     * @param {Function} resolve Promise resolve function
+     * @param {Function} reject Promise reject function
+     * @private
+     */
+    _runPythonScript(job, resolve, reject) {
+        const fs = require('fs');
+        const path = require('path');
+        
+        // Build the full input FASTQ path
+        const inputFile = path.join(job.input_path, job.filename_stem + job.filename_ext);
+        
+        // Extract barcode from the input path (e.g., "barcode01" from "../barcode01/file.fastq")
+        const pathParts = job.input_path.split(path.sep);
+        let barcode = 'unknown';
+        for (let i = pathParts.length - 1; i >= 0; i--) {
+            if (pathParts[i].startsWith('barcode')) {
+                barcode = pathParts[i];
+                break;
+            }
+        }
+        
+        // Build the output CSV path
+        const outputFile = path.join(job.output_path, `${job.filename_stem}.csv`);
+        
+        // Get references file from config
+        const referencesFile = this._configOptions.references_file;
+        
+        // Construct the script arguments
+        const spawnArgs = [
+            this._pythonScript,
+            '-i', inputFile,
+            '-r', referencesFile,
+            '-o', outputFile,
+            '-b', barcode,
+            '--threads', String(this._threadsRequested)
+        ];
+        
+        // Add reference fields if specified (default for RAMPART)
+        const refFields = this._configOptions.reference_fields || 'display_name[display_name]';
+        spawnArgs.push('--reference-fields', refFields);
+        
+        // Add min-identity if specified
+        if (this._configOptions.min_identity !== undefined) {
+            spawnArgs.push('--min-identity', String(this._configOptions.min_identity));
+        }
+        
+        verbose(`pipeline (${this._name})`, `python3 ` + spawnArgs.join(" "));
+        
+        this._sendMessage("start", job.filename_stem || barcode);
+        
+        // Use bundled Python if available (Windows), otherwise conda/system Python
+        const pythonPath = getPythonPath();
+        const spawnEnv = getPythonEnv();
+        
+        this._process = spawn(pythonPath, spawnArgs, { env: spawnEnv });
+        
+        const out = [];
+        this._process.stdout.on(
+            'data',
+            (data) => {
+                const message = data.toString();
+                out.push(message);
+                verbose(`pipeline (${this._name})`, message);
+            }
+        );
+        
+        const stderr = [];
+        this._process.stderr.on(
+            'data',
+            (data) => {
+                stderr.push(data.toString());
+            }
+        );
+        
+        this._process.on('error', (err) => {
+            this._sendMessage("error", "job failed");
+            this._process = undefined;
+            reject(`pipeline (${this._name}) failed to run - is Python installed?`);
+        });
+        
+        this._process.on('exit', (code) => {
+            this._process = undefined;
+            if (code === 0) {
+                this._sendMessage("success", job.name || barcode);
+                resolve();
+            } else {
+                this._sendMessage("error", `Job failed (exit code ${code}`);
+                warn(`pipeline (${this._name}) finished with exit code ${code}. Error messages:`);
+                stderr.forEach( (line) => warn(`\t${line}`) );
+                reject(`pipeline (${this._name}) finished with exit code ${code}`);
+            }
         });
     }
 

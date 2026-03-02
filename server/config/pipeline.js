@@ -176,7 +176,13 @@ function checkPipeline(config, key, pipeline, giveWarning = false) {
         message = `path doesn't exist`;
     }
 
-    if (!message && !fs.existsSync(pipeline.path + "Snakefile")) {
+    if (!message && pipeline.type === 'python') {
+        /* For Python pipelines, check that the script exists */
+        const scriptPath = path.join(pipeline.path, pipeline.script);
+        if (!fs.existsSync(scriptPath)) {
+            message = `Python script doesn't exist`;
+        }
+    } else if (!message && !fs.existsSync(pipeline.path + "Snakefile")) {
         message = `Snakefile doesn't exist`;
     }
 
