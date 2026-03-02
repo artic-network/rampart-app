@@ -46,9 +46,10 @@ class PipelineRunner {
             const scriptName = config.script;
             // Check if this is the core bundled annotation script
             if (scriptName === 'rampart_annotate.py') {
-                // Use bundled version from server/pipelines/
+                // Use bundled version from server/pipelines/ (must use unpacked path, not inside .asar)
                 const path = require('path');
-                this._pythonScript = path.join(__dirname, 'pipelines', scriptName);
+                const unpackedDir = __dirname.replace('app.asar', 'app.asar.unpacked');
+                this._pythonScript = path.join(unpackedDir, 'pipelines', scriptName);
                 verbose('pipeline', `Using bundled annotation script: ${this._pythonScript}`);
             } else {
                 // Use protocol-provided script
@@ -298,7 +299,9 @@ class PipelineRunner {
             spawnArgs.push('--min-identity', String(this._configOptions.min_identity));
         }
         
-        verbose(`pipeline (${this._name})`, `python3 ` + spawnArgs.join(" "));
+        const fullCmd = `python3 ` + spawnArgs.join(" ");
+        verbose(`pipeline (${this._name})`, fullCmd);
+        warn(`pipeline (${this._name}) running: ${fullCmd}`);
         
         this._sendMessage("start", job.filename_stem || barcode);
         
@@ -338,9 +341,11 @@ class PipelineRunner {
                 this._sendMessage("success", job.name || barcode);
                 resolve();
             } else {
-                this._sendMessage("error", `Job failed (exit code ${code}`);
-                warn(`pipeline (${this._name}) finished with exit code ${code}. Error messages:`);
-                stderr.forEach( (line) => warn(`\t${line}`) );
+                const stderrText = stderr.join('').trim();
+                const errorDetail = stderrText ? `: ${stderrText.split('\n')[0]}` : '';
+                this._sendMessage("error", `Job failed (exit code ${code})${errorDetail}`);
+                warn(`pipeline (${this._name}) finished with exit code ${code}. Command: ${fullCmd}`);
+                warn(`pipeline (${this._name}) stderr: ${stderrText}`);
                 reject(`pipeline (${this._name}) finished with exit code ${code}`);
             }
         });

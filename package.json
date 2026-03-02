@@ -101,7 +101,8 @@
     ],
     "asarUnpack": [
       "resources/**/*",
-      "build/**/*"
+      "build/**/*",
+      "server/pipelines/**/*"
     ],
     "directories": {
       "buildResources": "public"

@@ -180,7 +180,9 @@ function checkPipeline(config, key, pipeline, giveWarning = false) {
         /* For Python pipelines, check that the script exists */
         // Special case: rampart_annotate.py is bundled with the app
         if (pipeline.script === 'rampart_annotate.py') {
-            const bundledScriptPath = path.join(__dirname, '..', 'pipelines', pipeline.script);
+            // Must check the unpacked path since Python can't read files from inside .asar
+            const serverDir = __dirname.replace('app.asar', 'app.asar.unpacked').replace(/config$/, '');
+            const bundledScriptPath = path.join(serverDir, 'pipelines', pipeline.script);
             if (!fs.existsSync(bundledScriptPath)) {
                 message = `bundled Python script doesn't exist at ${bundledScriptPath}`;
             }

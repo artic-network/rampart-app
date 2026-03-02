@@ -72,12 +72,35 @@ function getPythonPath() {
     }
     
     // Try common Python installation locations
-    const pythonCandidates = [
-        // Conda environments (if user chose to use conda)
+    const home = require('os').homedir();
+    const pythonCandidates = platform === 'win32' ? [
+        // Windows: Conda environments (user installs)
+        path.join(home, 'miniconda3', 'envs', 'artic-rampart-mpxv', 'python.exe'),
+        path.join(home, 'miniconda3', 'envs', 'artic-rampart', 'python.exe'),
+        path.join(home, 'anaconda3', 'envs', 'artic-rampart-mpxv', 'python.exe'),
+        path.join(home, 'anaconda3', 'envs', 'artic-rampart', 'python.exe'),
+        // Windows: Conda base
+        path.join(home, 'miniconda3', 'python.exe'),
+        path.join(home, 'anaconda3', 'python.exe'),
+        // Windows: System-level conda installs
+        'C:\\ProgramData\\miniconda3\\envs\\artic-rampart-mpxv\\python.exe',
+        'C:\\ProgramData\\miniconda3\\envs\\artic-rampart\\python.exe',
+        'C:\\ProgramData\\anaconda3\\envs\\artic-rampart-mpxv\\python.exe',
+        'C:\\ProgramData\\anaconda3\\envs\\artic-rampart\\python.exe',
+        // Windows: Python launcher locations
+        path.join(home, 'AppData', 'Local', 'Programs', 'Python', 'Python312', 'python.exe'),
+        path.join(home, 'AppData', 'Local', 'Programs', 'Python', 'Python311', 'python.exe'),
+        path.join(home, 'AppData', 'Local', 'Programs', 'Python', 'Python310', 'python.exe'),
+    ] : [
+        // macOS/Linux: Conda environments
         '/opt/miniconda3/envs/artic-rampart-mpxv/bin/python3',
         '/opt/miniconda3/envs/artic-rampart/bin/python3',
         '/opt/anaconda3/envs/artic-rampart-mpxv/bin/python3',
         '/opt/anaconda3/envs/artic-rampart/bin/python3',
+        path.join(home, 'miniconda3', 'envs', 'artic-rampart-mpxv', 'bin', 'python3'),
+        path.join(home, 'miniconda3', 'envs', 'artic-rampart', 'bin', 'python3'),
+        path.join(home, 'anaconda3', 'envs', 'artic-rampart-mpxv', 'bin', 'python3'),
+        path.join(home, 'anaconda3', 'envs', 'artic-rampart', 'bin', 'python3'),
         // Homebrew (macOS)
         '/opt/homebrew/bin/python3',
         '/usr/local/bin/python3',
@@ -92,7 +115,8 @@ function getPythonPath() {
         }
     }
     
-    // Fall back to PATH lookup
+    // Fall back to PATH lookup ('python' covers both Windows 'python.exe' and cases
+    // where python3 isn't separately available)
     const systemPython = platform === 'win32' ? 'python.exe' : 'python3';
     verbose('resources', `Using system Python from PATH: ${systemPython}`);
     return systemPython;
