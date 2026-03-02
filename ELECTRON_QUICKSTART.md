@@ -100,7 +100,7 @@ The Electron app uses ports **3555** and **3556** (instead of 3000/3001 used by 
 ### Protocol Configuration
 On first run, users will need to configure:
 - Basecalled FASTQ directory path
-- Protocol directory (or use default_protocol/)
+- Protocol directory (e.g., example-mpxv/protocol/)
 - Output paths
 
 These are typically configured through the RAMPART UI.
@@ -133,7 +133,7 @@ The packaged app contains:
 - **Electron Shell**: Provides the desktop window
 - **Node.js Server**: Runs in main process (server/ directory)
 - **React Frontend**: Rendered in browser window (build/ directory)
-- **Pipelines**: Snakemake files and protocols (default_protocol/)
+- **Python Pipelines**: Custom annotation scripts (protocol/pipelines/)
 
 The server starts automatically when the app launches and communicates with the frontend via Socket.IO on localhost.
 

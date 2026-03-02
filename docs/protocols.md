@@ -157,7 +157,7 @@ If filtering is enabled, then the following options are presented to the pipelin
 
 #### The annotation pipeline
 
-The `annotation` pipeline is a special pipeline that will process reads as they are basecalled by MinKNOW. The default pipeline is in the `default_protocol` directory in the RAMPART directory but it can be overridden in a `protocol` directory to provide customised behaviour. 
+The `annotation` pipeline is a special pipeline that will process reads as they are basecalled by MinKNOW. The pipeline must be defined in a `protocol` directory within your protocol path to provide customised behaviour. 
 
 Unlike other pipelines, additional configuration can be provided here (see "Annotation options" below).
 

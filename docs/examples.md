@@ -1,6 +1,6 @@
 # Running the provided examples
 
-This article presupposes that you have [installed RAMPART](installation) by cloning the [GitHub repository](https://github.com/artic-network/rampart).
+This article presupposes that you have [installed RAMPART](installation) by cloning the [GitHub repository](https://github.com/artic-network/rampart-app).
 
 We've provided an example to both test out RAMPART and to see how a set of working configuration files look.
 Start by navigating into the example directory:

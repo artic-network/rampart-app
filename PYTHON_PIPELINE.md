@@ -4,6 +4,8 @@
 
 RAMPART now runs a standalone Python script (`rampart_annotate.py`) directly instead of using Snakemake pipelines. This simplifies the architecture, reduces dependencies, and makes debugging easier.
 
+**The annotation script is now embedded in the RAMPART app** at `server/pipelines/rampart_annotate.py` and is automatically used when protocols specify `"script": "rampart_annotate.py"`.
+
 ## Changes Made
 
 ### 1. Pipeline Configuration (`example-mpxv/protocol/pipelines.json`)
@@ -80,16 +82,16 @@ read_name,read_len,start_time,barcode,best_reference,ref_len,start_coords,end_co
 
 ## Installation
 
-1. **Install mappy in conda environment:**
+The annotation script is **embedded in RAMPART** - no manual installation needed!
+
+1. **Install mappy** (only Python dependency):
    ```bash
-   source /opt/miniconda3/etc/profile.d/conda.sh
-   conda activate artic-rampart-mpxv
    pip install mappy
    ```
 
 2. **Script location:**
-   - Main script: `rampart_annotate.py` (root directory)
-   - Pipeline copy: `example-mpxv/protocol/pipelines/python_annotate/rampart_annotate.py`
+   - Bundled in app: `server/pipelines/rampart_annotate.py`
+   - Automatically used when protocols specify `"script": "rampart_annotate.py"`
 
 ## Usage
 
@@ -174,11 +176,10 @@ Potential improvements:
 
 ## Files Modified
 
-- `server/PipelineRunner.js` - Added Python pipeline support
+- `server/PipelineRunner.js` - Added Python pipeline support with automatic detection of bundled scripts
 - `server/config/pipeline.js` - Added Python script validation
-- `example-mpxv/protocol/pipelines.json` - Configured Python pipeline
-- `example-mpxv/protocol/pipelines/python_annotate/rampart_annotate.py` - Created script
-- `example-mpxv/protocol/pipelines/python_annotate/README.md` - Documentation
+- `server/pipelines/rampart_annotate.py` - **Core embedded annotation script** (bundled with app)
+- `server/bundledResources.js` - Smart resource detection for Python and minimap2
 
 ## Conda Environment
 
@@ -210,12 +211,17 @@ head annotations/barcode01/barcode01.csv
 
 To migrate existing protocols from Snakemake to Python:
 
-1. Create `pipelines/python_annotate/` directory in protocol
-2. Copy `rampart_annotate.py` to that directory
-3. Update `pipelines.json` with:
-   - `"type": "python"`
-   - `"script": "rampart_annotate.py"`
-   - Remove `"config_file"`
-4. Test with sample data
+1. Update `pipelines.json` with:
+   ```json
+   {
+     "annotate": {
+       "label": "Annotate Reads",
+       "type": "python",
+       "script": "rampart_annotate.py"
+     }
+   }
+   ```
+2. Remove any `config_file` references
+3. That's it! The script is embedded in RAMPART - no copying needed
 
-The Snakemake pipelines in `default_protocol/` remain for backward compatibility but are not actively used.
+The previous Snakemake-based pipelines have been removed. RAMPART now runs Python scripts directly, with the core annotation script bundled in the app.

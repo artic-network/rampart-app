@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/artic-network/rampart.git"
+    "url": "git+https://github.com/artic-network/rampart-app.git"
   },
   "private": false,
   "license": "AGPL-3.0-only",
@@ -78,7 +78,7 @@
   },
   "description": "Read Assignment, Mapping, and Phylogenetic Analysis in Real Time.",
   "bugs": {
-    "url": "https://github.com/artic-network/rampart/issues"
+    "url": "https://github.com/artic-network/rampart-app/issues"
   },
   "directories": {
     "doc": "docs"
@@ -92,7 +92,6 @@
       "server/**/*",
       "src/electron.js",
       "src/preload.js",
-      "default_protocol/**/*",
       "node_modules/**/*",
       "package.json"
     ],

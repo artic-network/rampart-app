@@ -25,7 +25,6 @@ const { setUpPipelines } = require("./pipeline");
 const { modifySamplesAndBarcodes } = require("./modify");
 const { readConfigFile, findConfigFile, assert, setBarcodesFromFile } = require("./helpers");
 
-const DEFAULT_PROTOCOL_PATH = "default_protocol";
 const PROTOCOL_FILENAME= "protocol.json";
 const GENOME_CONFIG_FILENAME= "genome.json";
 const PRIMERS_CONFIG_FILENAME = "primers.json";
@@ -39,7 +38,6 @@ const BARCODES_TO_SAMPLE_FILENAME = "barcodes.csv";
  *
  * This will take configuration in the following order:
  *
- * [RAMPART_ROOT]/default_protocol/
  * [PROTOCOL_PATH]/
  * current working directory/
  *
@@ -113,20 +111,13 @@ function getInitialConfig(args) {
 
 /** */
 function setUpPathCascade(args) {
-    const serverDir = __dirname;
-    const rampartSourceDir = serverDir.substring(0, serverDir.length - 14); // no trailing slash
-    const defaultProtocolPath = getAbsolutePath(DEFAULT_PROTOCOL_PATH, {relativeTo: rampartSourceDir});
-    //verbose("config", `Default protocol path: ${defaultProtocolPath}`);
-
-    const pathCascade = [
-        normalizePath(defaultProtocolPath) // always read config from the default protocol
-    ];
+    const pathCascade = [];
 
     const userProtocol = args.protocol || (process.env.RAMPART_PROTOCOL || undefined);
 
     if (userProtocol) {
         const userProtocolPath = getAbsolutePath(userProtocol, {relativeTo: process.cwd()});
-        //verbose("config", `Protocol path: ${userProtocolPath}`);
+        verbose("config", `Protocol path: ${userProtocolPath}`);
         pathCascade.push(normalizePath(userProtocolPath));
     }
 

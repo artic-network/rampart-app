@@ -22,7 +22,7 @@ git tag -a v1.1.0rc2 -m "version 1.1.0 release candidate 2"
 git push --follow-tags
 ```
 
-This will create the tar.gz like https://github.com/artic-network/rampart/archive/v1.1.0rc2.tar.gz
+This will create the tar.gz like https://github.com/artic-network/rampart-app/archive/v1.1.0rc2.tar.gz
 
 * Modify `./recipes/conda/meta.yaml` to include the new version, new URL to the above tarball and sha256 of the tarball.
 You may generate the hash via:

@@ -84,8 +84,8 @@ Should output: `mappy 2.30 installed` (or similar version)
 
 ```bash
 # Clone repository
-git clone https://github.com/artic-network/rampart.git
-cd rampart
+git clone https://github.com/artic-network/rampart-app.git
+cd rampart-app
 
 # Install Node dependencies
 npm install

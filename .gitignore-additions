@@ -1,8 +1,0 @@
-# Bundled binaries (platform-specific, downloaded separately)
-resources/bin/win32/minimap2.exe
-resources/bin/linux/minimap2
-resources/python/win32/python.exe
-resources/python/win32/*.dll
-resources/python/win32/*.zip
-resources/python/win32/Scripts/
-resources/python/win32/Lib/

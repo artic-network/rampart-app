@@ -72,8 +72,8 @@ rampart --help
 (1) Clone the Github repo 
 
 ```bash
-git clone https://github.com/artic-network/rampart.git
-cd rampart
+git clone https://github.com/artic-network/rampart-app.git
+cd rampart-app
 ```
 
 (2) Create an activate the conda environment with the required dependencies.

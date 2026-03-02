@@ -244,7 +244,6 @@ RAMPART.app (or RAMPART.exe)
 ├── Electron runtime
 ├── React frontend (in build/)
 ├── Node.js server (in server/)
-├── Default protocols (in default_protocol/)
 └── All node_modules
 ```
 

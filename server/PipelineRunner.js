@@ -40,7 +40,24 @@ class PipelineRunner {
         this._name = config.name;
         this._type = config.type || 'snakemake'; // 'snakemake' or 'python'
         this._snakefile = config.path + "Snakefile";
-        this._pythonScript = config.script ? config.path + config.script : null;
+        
+        // Handle Python script path: Use bundled version for core annotation script
+        if (config.script) {
+            const scriptName = config.script;
+            // Check if this is the core bundled annotation script
+            if (scriptName === 'rampart_annotate.py') {
+                // Use bundled version from server/pipelines/
+                const path = require('path');
+                this._pythonScript = path.join(__dirname, 'pipelines', scriptName);
+                verbose('pipeline', `Using bundled annotation script: ${this._pythonScript}`);
+            } else {
+                // Use protocol-provided script
+                this._pythonScript = config.path + scriptName;
+            }
+        } else {
+            this._pythonScript = null;
+        }
+        
         this._configfile = config.config_file ?
             config.path + config.config_file :
             false;
