@@ -200,14 +200,11 @@ function checkPythonEnvironment() {
 }
 
 function createWindow(showSettings = true) {
-    console.log('createWindow() called');
     try {
-        console.log('Creating BrowserWindow...');
-        // Create the browser window.
         mainWindow = new BrowserWindow({
             width: 1400,
             height: 900,
-            show: true,  // Explicitly show
+            show: true,
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
@@ -215,53 +212,30 @@ function createWindow(showSettings = true) {
             },
             title: 'RAMPART'
         });
-        console.log('BrowserWindow created');
-
-        // Open DevTools and log page loads for debugging
-        mainWindow.webContents.on('did-finish-load', () => {
-            console.log('Page loaded successfully, opening DevTools');
-            mainWindow.webContents.openDevTools();
-        });
 
         if (showSettings) {
-            // Load the settings page first
-            console.log('Loading settings page...');
             mainWindow.loadFile(path.join(__dirname, '../build/settings.html')).catch(err => {
                 console.error('Failed to load settings page:', err);
             });
         } else {
-            // Load the main RAMPART app
             loadMainApp();
         }
 
-        // Log any load failures
         mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
             console.error('Failed to load page:', errorCode, errorDescription);
         });
 
-        // Detect renderer crashes
         mainWindow.webContents.on('render-process-gone', (event, details) => {
             console.error('Renderer process gone:', details);
         });
 
-        // Detect window crashes
         mainWindow.on('unresponsive', () => {
             console.error('Window became unresponsive');
         });
 
-        // Handle window close
-        mainWindow.on('close', (event) => {
-            console.log('Window close event fired');
-            // Allow normal closing
-        });
-
-        // Emitted when the window is closed.
         mainWindow.on('closed', function () {
-            console.log('Window closed');
             mainWindow = null;
         });
-        
-        console.log('Window setup complete');
     } catch (err) {
         console.error('Error in createWindow():', err);
         throw err;
@@ -279,14 +253,10 @@ function loadMainApp() {
         ? 'http://localhost:3000'
         : `http://localhost:${serverPort}`;
     
-    console.log(`Loading RAMPART app from: ${startUrl}`);
-    
-    mainWindow.loadURL(startUrl).then(() => {
-        console.log('Successfully loaded URL');
-    }).catch(err => {
+    mainWindow.loadURL(startUrl).catch(err => {
+        console.error('Failed to load URL:', err);
         console.error('Failed to load URL:', err);
         lastServerError = `Failed to load app: ${err.message}`;
-        // Show error page
         mainWindow.loadURL(`data:text/html,<html><body style="font-family: sans-serif; padding: 40px; background: #1a1a1a; color: #fffcf2;"><h1 style="color: #e06962;">Failed to Load</h1><p>Could not connect to RAMPART server at ${startUrl}</p><p style="color: #ccc;">${err.message}</p></body></html>`);
     });
 }
@@ -306,21 +276,16 @@ ipcMain.handle('select-path', async (event, isFile) => {
 
 ipcMain.on('start-server', async (event, settings) => {
     const sendStatus = (msg) => {
-        console.log(msg);
         if (mainWindow && mainWindow.webContents) {
             mainWindow.webContents.send('status-update', msg);
         }
     };
-    
-    sendStatus('===== START SERVER REQUEST =====');
-    sendStatus('Received start-server request with settings: ' + JSON.stringify(settings, null, 2));
     
     // Save settings for next time
     userSettings = settings;
     saveSettings(settings);
     
     // Show loading state with live updates
-    sendStatus('Showing loading screen...');
     mainWindow.loadURL('data:text/html,<html><head><script>window.addEventListener("DOMContentLoaded", () => { if (window.electronAPI) { window.electronAPI.onStatusUpdate((msg) => { const log = document.getElementById("log"); if (log) { log.innerHTML += "<div>" + msg + "</div>"; log.scrollTop = log.scrollHeight; } }); } });</script></head><body style="font-family: monospace; margin: 0; padding: 20px; background: #1a1a1a; color: #22968B;"><h2 style="color: #F6EECA; margin-bottom: 10px;">Starting RAMPART...</h2><div id="log" style="font-size: 12px; line-height: 1.6; max-height: 80vh; overflow-y: auto; white-space: pre-wrap;"></div></body></html>');
     
     // Wait for page to load
@@ -358,14 +323,9 @@ ipcMain.on('show-settings', () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on('ready', async () => {
-    console.log('App ready event fired');
-
     // Pre-flight check: verify Python and mappy are available
-    console.log('Checking Python environment...');
     const pyCheck = await checkPythonEnvironment();
-    if (pyCheck.ok) {
-        console.log(`✓ Python environment OK: ${pyCheck.pythonPath} (mappy ${pyCheck.version})`);
-    } else {
+    if (!pyCheck.ok) {
         console.error('Python environment check failed:', pyCheck.error);
         // Show a blocking warning dialog before the settings window
         // We need at least one window or a hidden one for dialog parent
@@ -389,7 +349,6 @@ app.on('ready', async () => {
         if (app.isQuitting) return;
     }
 
-    console.log('Creating settings window...');
     createWindow(true); // Show settings page first
 });
 
@@ -402,32 +361,8 @@ app.on('activate', function () {
 });
 
 // Clean up on quit
-app.on('will-quit', () => {
-    console.log('will-quit event fired');
-});
-
-app.on('before-quit', () => {
-    console.log('before-quit event fired');
-});
-
-app.on('quit', () => {
-    console.log('quit event fired');
-});
-
-// Handle errors
-process.on('uncaughtException', (error) => {
-    console.error('Uncaught exception:', error);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled rejection at:', promise, 'reason:', reason);
-});
-
-// Prevent app from quitting when all windows close
 app.on('window-all-closed', (e) => {
-    console.log('window-all-closed event fired - PREVENTING DEFAULT');
     e.preventDefault();
-    console.log('Prevented app quit from window-all-closed');
 });
 
 // Explicitly prevent app from autoquitting

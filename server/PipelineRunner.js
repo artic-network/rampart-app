@@ -301,7 +301,6 @@ class PipelineRunner {
         
         const fullCmd = `python3 ` + spawnArgs.join(" ");
         verbose(`pipeline (${this._name})`, fullCmd);
-        warn(`pipeline (${this._name}) running: ${fullCmd}`);
         
         this._sendMessage("start", job.filename_stem || barcode);
         
