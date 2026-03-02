@@ -1,0 +1,118 @@
+name: Build and Release
+
+# Trigger on version tags: v1.2.3 or v1.2.3-beta.1
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # ─── macOS build (signed + notarized) ───────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and sign macOS app
+        env:
+          # Code signing certificate: base64-encoded Developer ID Application .p12
+          CSC_LINK: ${{ secrets.PROD_MACOS_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          # Notarization credentials (Apple ID + app-specific password + team)
+          APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+          APPLE_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+          # Ensure notarization uses the right tool (Xcode 13+)
+          NOTARIZE_TOOL: notarytool
+        run: npm run dist:mac
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-artifacts
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest-mac.yml
+
+  # ─── Windows build ──────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows app
+        run: npm run dist:win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-artifacts
+          path: |
+            dist/*.exe
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest.yml
+
+  # ─── Create GitHub Release with all artifacts ───────────────────────────────
+  release:
+    needs: [build-mac, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-artifacts
+          path: dist/mac
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: win-artifacts
+          path: dist/win
+
+      - name: List artifacts
+        run: find dist -type f | sort
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/mac/*.dmg
+            dist/mac/*.zip
+            dist/mac/*.blockmap
+            dist/mac/latest-mac.yml
+            dist/win/*.exe
+            dist/win/*.zip
+            dist/win/*.blockmap
+            dist/win/latest.yml
+          generate_release_notes: true
+          draft: false
+          # Tags containing a hyphen (e.g. v1.2.3-beta.1) are pre-releases
+          prerelease: ${{ contains(github.ref_name, '-') }}
