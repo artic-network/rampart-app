@@ -125,7 +125,7 @@
           ]
         }
       ],
-      "icon": "public/icon.icns",
+      "icon": "icon/icon.icns",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mac.plist",
@@ -161,7 +161,7 @@
           ]
         }
       ],
-      "icon": "public/icon.ico",
+      "icon": "icon/icon.ico",
       "extraResources": [
         {
           "from": "resources/python/win32",
