@@ -178,9 +178,17 @@ function checkPipeline(config, key, pipeline, giveWarning = false) {
 
     if (!message && pipeline.type === 'python') {
         /* For Python pipelines, check that the script exists */
-        const scriptPath = path.join(pipeline.path, pipeline.script);
-        if (!fs.existsSync(scriptPath)) {
-            message = `Python script doesn't exist`;
+        // Special case: rampart_annotate.py is bundled with the app
+        if (pipeline.script === 'rampart_annotate.py') {
+            const bundledScriptPath = path.join(__dirname, '..', 'pipelines', pipeline.script);
+            if (!fs.existsSync(bundledScriptPath)) {
+                message = `bundled Python script doesn't exist at ${bundledScriptPath}`;
+            }
+        } else {
+            const scriptPath = path.join(pipeline.path, pipeline.script);
+            if (!fs.existsSync(scriptPath)) {
+                message = `Python script doesn't exist`;
+            }
         }
     } else if (!message && !fs.existsSync(pipeline.path + "Snakefile")) {
         message = `Snakefile doesn't exist`;

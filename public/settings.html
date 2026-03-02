@@ -357,7 +357,16 @@
         
         // Load saved settings on startup
         window.addEventListener('DOMContentLoaded', () => {
+            console.log('Settings page loaded');
+            console.log('electronAPI available:', !!window.electronAPI);
+            
+            if (!window.electronAPI) {
+                showMessage('Error: Electron API not available. Please restart the app.', 'error');
+                return;
+            }
+            
             window.electronAPI.loadSettings().then(settings => {
+                console.log('Loaded settings:', settings);
                 if (settings) {
                     if (settings.title) document.getElementById('title').value = settings.title;
                     if (settings.basecalledPath) document.getElementById('basecalledPath').value = settings.basecalledPath;
@@ -367,12 +376,20 @@
                     if (settings.clearAnnotated) document.getElementById('clearAnnotated').checked = settings.clearAnnotated;
                     if (settings.verbose) document.getElementById('verbose').checked = settings.verbose;
                 }
+            }).catch(err => {
+                console.error('Failed to load settings:', err);
             });
         });
         
         // Handle form submission
         document.getElementById('settingsForm').addEventListener('submit', (e) => {
             e.preventDefault();
+            console.log('Form submitted');
+            
+            if (!window.electronAPI) {
+                showMessage('Error: Electron API not available', 'error');
+                return;
+            }
             
             const basecalledPath = document.getElementById('basecalledPath').value.trim();
             if (!basecalledPath) {
@@ -390,8 +407,10 @@
                 verbose: document.getElementById('verbose').checked
             };
             
+            console.log('Sending settings to main process:', settings);
             showMessage('Starting RAMPART server...', 'success');
             window.electronAPI.startServer(settings);
+            console.log('startServer called');
         });
     </script>
 </body>

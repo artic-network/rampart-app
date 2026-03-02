@@ -80,9 +80,6 @@
   "bugs": {
     "url": "https://github.com/artic-network/rampart-app/issues"
   },
-  "directories": {
-    "doc": "docs"
-  },
   "keywords": [],
   "build": {
     "appId": "network.artic.rampart",
@@ -103,7 +100,8 @@
       }
     ],
     "asarUnpack": [
-      "resources/**/*"
+      "resources/**/*",
+      "build/**/*"
     ],
     "directories": {
       "buildResources": "public"

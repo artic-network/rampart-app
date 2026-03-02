@@ -34,7 +34,7 @@ identify the process currently using the port.
  * (this is in preperation for a move to electron, where main-renderer
  * process communication is socket-like)
  */
-const run = async ({devClient, ports}) => {
+const run = async ({devClient, ports, buildPath}) => {
     let serverPort = ports[0];
     let socketPort = ports[1];
     if (devClient && (serverPort !== 3000 || socketPort !== 3001)) {
@@ -68,9 +68,11 @@ const run = async ({devClient, ports}) => {
         /* serve production (built) bundle -- html & javascript */
         const app = express();
         app.set('port', serverPort);
-        app.use(express.static(path.join(__dirname, "..", 'build')));
+        const buildDir = buildPath || path.join(__dirname, "..", 'build');
+        log(`Serving from build directory: ${buildDir}`);
+        app.use(express.static(buildDir));
         app.get('/', function (req, res) {
-            res.sendFile(path.join(__dirname, "..", 'build', 'index.html'));
+            res.sendFile(path.join(buildDir, 'index.html'));
         });
         app.get('/getSocketPort', function (req, res) {
             /* API call for the client served by this rampart.js to know what socket to connect on */

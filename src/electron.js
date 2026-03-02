@@ -35,6 +35,7 @@ let mainWindow;
 let serverPort = 3555; // Default port for Electron mode
 let serverStarted = false;
 let userSettings = null;
+let lastServerError = null;
 
 // Settings file path
 const settingsPath = path.join(app.getPath('userData'), 'rampart-settings.json');
@@ -82,40 +83,86 @@ function ensureRampartDirectories() {
     return { basecalledDir, annotatedDir };
 }
 
-async function startServer(settings) {
+async function startServer(settings, sendStatus) {
+    const log = (msg) => {
+        console.log(msg);
+        if (sendStatus) sendStatus(msg);
+    };
+    
     // Set up config for Electron mode with user settings
     const args = {
         verbose: settings.verbose || false,
         devClient: false,
         ports: [serverPort, serverPort + 1],
         basecalledPath: settings.basecalledPath,
-        annotatedPath: settings.annotatedPath || './annotations',
+        annotatedDir: settings.annotatedPath || './annotations',
         protocol: settings.protocol,
         title: settings.title,
         referencesPath: settings.referencesPath,
         clearAnnotated: settings.clearAnnotated || false
     };
     
+    log('Starting server with args: ' + JSON.stringify(args, null, 2));
+    
     try {
+        // Validate required paths exist
+        log('Validating paths...');
+        if (!fs.existsSync(args.basecalledPath)) {
+            throw new Error(`Basecalled FASTQ directory not found: ${args.basecalledPath}`);
+        }
+        log('✓ Basecalled path exists: ' + args.basecalledPath);
+        
+        if (args.protocol && !fs.existsSync(args.protocol)) {
+            throw new Error(`Protocol directory not found: ${args.protocol}`);
+        }
+        if (args.protocol) {
+            log('✓ Protocol path exists: ' + args.protocol);
+        }
+        
+        log('Initializing config...');
         const {config, pipelineRunners} = getInitialConfig(args);
+        log('✓ Config initialized: ' + JSON.stringify({
+            hasProtocol: !!config.protocol,
+            hasGenome: !!config.genome,
+            hasPipelines: !!config.pipelines,
+            runTitle: config.run?.title
+        }, null, 2));
+        
         global.config = config;
         global.pipelineRunners = pipelineRunners;
         global.datastore = new Datastore();
         global.filesSeen = new Set();
 
-        await server.run({devClient: false, ports: args.ports});
+        // Get the correct build path for packaged app
+        const buildPath = path.join(app.getAppPath(), 'build');
+        log('Build path: ' + buildPath);
+        log('Build path exists: ' + fs.existsSync(buildPath));
+        
+        log('Starting Express server...');
+        await server.run({devClient: false, ports: args.ports, buildPath});
+        log('✓ Express server running on port ' + serverPort);
 
         if (global.config.run.clearAnnotated) {
+            log('Clearing existing annotations...');
             await startUp.removeExistingAnnotatedCSVs();
         } else {
+            log('Processing existing annotations...');
             await startUp.processExistingAnnotatedCSVs();
         }
+        
+        log('Starting basecalled files watcher...');
         await startBasecalledFilesWatcher();
+        log('✓ File watcher started');
         
         serverStarted = true;
+        log('===== SERVER STARTED SUCCESSFULLY =====');
+        lastServerError = null;
         return true;
     } catch (err) {
-        console.error("Failed to start server:", err);
+        log('❌ ERROR: Failed to start server');
+        log('Error message: ' + err.message);
+        log('Error stack: ' + err.stack);
+        lastServerError = err.message;
         return false;
     }
 }
@@ -138,24 +185,22 @@ function createWindow(showSettings = true) {
         });
         console.log('BrowserWindow created');
 
+        // Open DevTools and log page loads for debugging
+        mainWindow.webContents.on('did-finish-load', () => {
+            console.log('Page loaded successfully, opening DevTools');
+            mainWindow.webContents.openDevTools();
+        });
+
         if (showSettings) {
             // Load the settings page first
             console.log('Loading settings page...');
-            mainWindow.loadFile(path.join(__dirname, '../public/settings.html'));
+            mainWindow.loadFile(path.join(__dirname, '../build/settings.html')).catch(err => {
+                console.error('Failed to load settings page:', err);
+            });
         } else {
             // Load the main RAMPART app
             loadMainApp();
         }
-
-        // Open DevTools in development
-        if (process.env.NODE_ENV === 'development') {
-            mainWindow.webContents.openDevTools();
-        }
-
-        // Log when page is loaded
-        mainWindow.webContents.on('did-finish-load', () => {
-            console.log('Page loaded successfully');
-        });
 
         // Log any load failures
         mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
@@ -203,7 +248,15 @@ function loadMainApp() {
         : `http://localhost:${serverPort}`;
     
     console.log(`Loading RAMPART app from: ${startUrl}`);
-    mainWindow.loadURL(startUrl);
+    
+    mainWindow.loadURL(startUrl).then(() => {
+        console.log('Successfully loaded URL');
+    }).catch(err => {
+        console.error('Failed to load URL:', err);
+        lastServerError = `Failed to load app: ${err.message}`;
+        // Show error page
+        mainWindow.loadURL(`data:text/html,<html><body style="font-family: sans-serif; padding: 40px; background: #1a1a1a; color: #fffcf2;"><h1 style="color: #e06962;">Failed to Load</h1><p>Could not connect to RAMPART server at ${startUrl}</p><p style="color: #ccc;">${err.message}</p></body></html>`);
+    });
 }
 
 // IPC Handlers for settings page
@@ -220,27 +273,53 @@ ipcMain.handle('select-path', async (event, isFile) => {
 });
 
 ipcMain.on('start-server', async (event, settings) => {
-    console.log('Received start-server request with settings:', settings);
+    const sendStatus = (msg) => {
+        console.log(msg);
+        if (mainWindow && mainWindow.webContents) {
+            mainWindow.webContents.send('status-update', msg);
+        }
+    };
+    
+    sendStatus('===== START SERVER REQUEST =====');
+    sendStatus('Received start-server request with settings: ' + JSON.stringify(settings, null, 2));
     
     // Save settings for next time
     userSettings = settings;
     saveSettings(settings);
     
-    // Show loading state
-    mainWindow.loadURL('data:text/html,<html><body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"><div style="text-align: center; color: white;"><h1>Starting RAMPART...</h1><p>Initializing server and loading data...</p></div></body></html>');
+    // Show loading state with live updates
+    sendStatus('Showing loading screen...');
+    mainWindow.loadURL('data:text/html,<html><head><script>window.addEventListener("DOMContentLoaded", () => { if (window.electronAPI) { window.electronAPI.onStatusUpdate((msg) => { const log = document.getElementById("log"); if (log) { log.innerHTML += "<div>" + msg + "</div>"; log.scrollTop = log.scrollHeight; } }); } });</script></head><body style="font-family: monospace; margin: 0; padding: 20px; background: #1a1a1a; color: #22968B;"><h2 style="color: #F6EECA; margin-bottom: 10px;">Starting RAMPART...</h2><div id="log" style="font-size: 12px; line-height: 1.6; max-height: 80vh; overflow-y: auto; white-space: pre-wrap;"></div></body></html>');
+    
+    // Wait for page to load
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Start the server
-    const success = await startServer(settings);
+    sendStatus('Calling startServer...');
+    const success = await startServer(settings, sendStatus);
     
     if (success) {
-        console.log('Server started successfully, loading main app...');
+        sendStatus('Server started successfully, loading main app...');
         // Give server a moment to fully initialize
         setTimeout(() => {
+            sendStatus('Loading main app URL...');
             loadMainApp();
-        }, 1000);
+        }, 2000);
     } else {
-        console.error('Failed to start server');
-        mainWindow.loadURL('data:text/html,<html><body style="font-family: sans-serif; padding: 40px;"><h1 style="color: #c33;">Error</h1><p>Failed to start RAMPART server. Please check your settings and try again.</p><button onclick="history.back()" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer;">Go Back</button></body></html>');
+        sendStatus('❌ FAILED to start server');
+        sendStatus('See error messages above');
+        // Error page is already shown with the log in the loading screen
+        // Just update it with a back button
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        const errorMsg = lastServerError || 'Unknown error occurred. Check the log above.';
+        mainWindow.loadURL(`data:text/html,<html><body style="font-family: sans-serif; padding: 40px; background: #1a1a1a; color: #fffcf2;"><h1 style="color: #e06962;">Error Starting RAMPART</h1><p style="margin: 20px 0; font-size: 16px; line-height: 1.6; background: #803c38; padding: 15px; border-radius: 4px; border: 1px solid #e06962;">${errorMsg}</p><button onclick="window.location.reload()" style="padding: 12px 24px; background: #22968B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 20px;">Try Again</button></body></html>`);
+    }
+});
+
+// Add handler to show settings
+ipcMain.on('show-settings', () => {
+    if (mainWindow) {
+        mainWindow.loadFile(path.join(__dirname, '../build/settings.html'));
     }
 });
 
