@@ -2,6 +2,7 @@
   "name": "artic-rampart",
   "version": "1.2.1",
   "author": "James Hadfield, Ainé O'Toole, ARTIC network, Nick Loman, Andrew Rambaut",
+  "main": "src/electron.js",
   "bin": {
     "rampart": "./rampart.js"
   },
@@ -11,7 +12,7 @@
   },
   "private": false,
   "license": "AGPL-3.0-only",
-  "homepage": "https://artic.network/",
+  "homepage": ".",
   "dependencies": {
     "chalk": "^2.4.1",
     "chokidar": "^3.3.1",
@@ -45,13 +46,23 @@
     "styled-components": "^5.0.1",
     "tree-kill": "^1.2.2"
   },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
     "server": "node src/server.js",
-    "test": "react-scripts test --env=jsdom",
+    "test": "NODE_OPTIONS=--openssl-legacy-provider react-scripts test --env=jsdom",
     "eject": "react-scripts eject",
-    "postinstall": "npm run build"
+    "electron": "electron .",
+    "electron-dev": "NODE_ENV=development electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:all": "npm run build && electron-builder --mac --win"
   },
   "browserslist": {
     "production": [
@@ -72,5 +83,88 @@
   "directories": {
     "doc": "docs"
   },
-  "keywords": []
+  "keywords": [],
+  "build": {
+    "appId": "network.artic.rampart",
+    "productName": "RAMPART",
+    "files": [
+      "build/**/*",
+      "server/**/*",
+      "src/electron.js",
+      "default_protocol/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "public"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "public/icon.icns"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Science"
+    },
+    "extraMetadata": {
+      "main": "src/electron.js"
+    }
+  }
 }

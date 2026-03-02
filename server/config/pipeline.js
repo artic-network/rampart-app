@@ -141,15 +141,21 @@ function parseAnnotationRequires(pipeline, config, pathCascade, args) {
             requirement.path = filepath;
 
             if (!filepath) {
-                // throw new Error(`Unable to find required file, ${requirement.file}, for pipeline, '${config.pipelines.annotation.name}'`);
-                fatal(`Unable to find required file, ${requirement.file}, for pipeline, '${config.pipelines.annotation.name}'\n`);
+                // In Electron mode or standalone mode, don't fail hard on missing references
+                // The user can configure this later through the UI
+                warn(`Unable to find required file, ${requirement.file}, for pipeline, '${config.pipelines.annotation.name}'`);
+                warn(`The annotation pipeline will not work until this file is provided.`);
+                // Set empty path so pipeline setup can continue
+                requirement.path = '';
+            } else {
+                // set this in config.run so the UI can find it.
+                config.run.referencesPanel = filepath;
             }
 
-            // set this in config.run so the UI can find it.
-            config.run.referencesPanel = filepath;
-
-            // finally, transfer them to the `configOptions`
-            pipeline.configOptions[requirement.config_key] = requirement.path;
+            // finally, transfer them to the `configOptions` if we have a path
+            if (requirement.path) {
+                pipeline.configOptions[requirement.config_key] = requirement.path;
+            }
         });
     }
 }

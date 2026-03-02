@@ -42,3 +42,13 @@ binned*
 
 # snakemake stuff
 .snakemake/
+
+# electron-builder output
+/dist
+/dist_electron
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.zip

@@ -20,45 +20,169 @@ const BrowserWindow = electron.BrowserWindow;
 
 const path = require('path');
 const url = require('url');
+const fs = require('fs');
+const os = require('os');
+const server = require("../server/server");
+const { getInitialConfig } = require("../server/config/getInitialConfig");
+const startUp = require("../server/startUp");
+const { startBasecalledFilesWatcher } = require("../server/watchBasecalledFiles");
+const Datastore = require("../server/datastore").default;
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
+let serverPort = 3555; // Default port for Electron mode
+
+// Create a temporary directory structure for RAMPART if not configured
+function ensureRampartDirectories() {
+    const rampartDir = path.join(os.homedir(), '.rampart');
+    const basecalledDir = path.join(rampartDir, 'basecalled');
+    const annotatedDir = path.join(rampartDir, 'annotations');
+    
+    [rampartDir, basecalledDir, annotatedDir].forEach(dir => {
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+    });
+    
+    return { basecalledDir, annotatedDir };
+}
+
+async function startServer() {
+    // Set up directories
+    const { basecalledDir, annotatedDir } = ensureRampartDirectories();
+    
+    // Set up config for Electron mode with default paths
+    const args = {
+        verbose: false,
+        devClient: false,
+        ports: [serverPort, serverPort + 1],
+        basecalledPath: basecalledDir,
+        annotatedPath: annotatedDir
+    };
+    
+    try {
+        const {config, pipelineRunners} = getInitialConfig(args);
+        global.config = config;
+        global.pipelineRunners = pipelineRunners;
+        global.datastore = new Datastore();
+        global.filesSeen = new Set();
+
+        await server.run({devClient: false, ports: args.ports});
+
+        if (global.config.run.clearAnnotated) {
+            await startUp.removeExistingAnnotatedCSVs();
+        } else {
+            await startUp.processExistingAnnotatedCSVs();
+        }
+        await startBasecalledFilesWatcher();
+        
+        return true;
+    } catch (err) {
+        console.error("Failed to start server:", err);
+        return false;
+    }
+}
 
 function createWindow() {
-    // Instantiate the server
-    // see https://github.com/theallmightyjohnmanning/electron-express
-    app.server = require(path.join(__dirname, 'server.js'));
+    console.log('createWindow() called');
+    try {
+        console.log('Creating BrowserWindow...');
+        // Create the browser window.
+        mainWindow = new BrowserWindow({
+            width: 1400,
+            height: 900,
+            show: true,  // Explicitly show
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            },
+            title: 'RAMPART'
+        });
+        console.log('BrowserWindow created');
 
-    // Create the browser window.
-    mainWindow = new BrowserWindow({width: 1200, height: 800});
+        // Load a placeholder first - don't try to load app until server is ready
+        console.log('Loading placeholder page...');
+        mainWindow.loadURL('data:text/html,<html><body><h1>RAMPART Starting...</h1><p>Please wait while the server starts</p></body></html>');
 
-    // and load the index.html of the app.
-    mainWindow.loadURL('http://localhost:3000');
+        // Don't load the app yet - we'll do that after server starts
+        // Store startUrl for later
+        const isDev = process.env.NODE_ENV === 'development';
+        const startUrl = isDev 
+            ? 'http://localhost:3000'
+            : `http://localhost:${serverPort}`;
+        mainWindow.rampartUrl = startUrl;
 
-    // Open the DevTools.
-    mainWindow.webContents.openDevTools();
+        // Open DevTools in development
+        if (isDev) {
+            mainWindow.webContents.openDevTools();
+        }
 
-    // Emitted when the window is closed.
-    mainWindow.on('closed', function () {
-        // Dereference the window object, usually you would store windows
-        // in an array if your app supports multi windows, this is the time
-        // when you should delete the corresponding element.
-        mainWindow = null
-    })
+        // Log when page is loaded
+        mainWindow.webContents.on('did-finish-load', () => {
+            console.log('Page loaded successfully');
+        });
+
+        // Log any load failures
+        mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+            console.error('Failed to load page:', errorCode, errorDescription);
+        });
+
+        // Detect renderer crashes
+        mainWindow.webContents.on('render-process-gone', (event, details) => {
+            console.error('Renderer process gone:', details);
+        });
+
+        // Detect window crashes
+        mainWindow.on('unresponsive', () => {
+            console.error('Window became unresponsive');
+        });
+
+        // Handle window close
+        mainWindow.on('close', (event) => {
+            console.log('Window close event fired');
+            // Allow normal closing
+        });
+
+        // Emitted when the window is closed.
+        mainWindow.on('closed', function () {
+            console.log('Window closed');
+            mainWindow = null;
+        });
+        
+        console.log('Window setup complete');
+    } catch (err) {
+        console.error('Error in createWindow():', err);
+        throw err;
+    }
+
+    // Keep a reference to prevent garbage collection
+    return mainWindow;
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
-
-// Quit when all windows are closed.
-app.on('window-all-closed', function () {
-    // On OS X it is common for applications and their menu bar
-    // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
-        app.quit()
+app.on('ready', async () => {
+    console.log('App ready event fired');
+    console.log('Creating window...');
+    createWindow();
+    console.log('Window created with placeholder');
+    
+    console.log('Starting RAMPART server...');
+    const serverStarted = await startServer();
+    
+    if (serverStarted) {
+        console.log(`Server running on port ${serverPort}`);
+        console.log('Loading RAMPART app into window...');
+        if (mainWindow && mainWindow.rampartUrl) {
+            mainWindow.loadURL(mainWindow.rampartUrl);
+            console.log(`App loading from: ${mainWindow.rampartUrl}`);
+        }
+    } else {
+        console.error('Failed to start server.');
+        if (mainWindow) {
+            mainWindow.loadURL('data:text/html,<html><body><h1>Error</h1><p>Failed to start RAMPART server</p></body></html>');
+        }
     }
 });
 
@@ -66,9 +190,40 @@ app.on('activate', function () {
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (mainWindow === null) {
-        createWindow()
+        createWindow();
     }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+// Clean up on quit
+app.on('will-quit', () => {
+    console.log('will-quit event fired');
+});
+
+app.on('before-quit', () => {
+    console.log('before-quit event fired');
+});
+
+app.on('quit', () => {
+    console.log('quit event fired');
+});
+
+// Handle errors
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled rejection at:', promise, 'reason:', reason);
+});
+
+// Prevent app from quitting when all windows close
+app.on('window-all-closed', (e) => {
+    console.log('window-all-closed event fired - PREVENTING DEFAULT');
+    e.preventDefault();
+    console.log('Prevented app quit from window-all-closed');
+});
+
+// Explicitly prevent app from autoquitting
+if (process.platform === 'darwin') {
+    app.dock.show();
+}
