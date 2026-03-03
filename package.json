@@ -47,12 +47,13 @@
     "tree-kill": "^1.2.2"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "electron": "^28.3.3",
     "electron-builder": "^24.13.3"
   },
   "scripts": {
-    "start": "NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
-    "build": "NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
+    "start": "cross-env NODE_OPTIONS=--openssl-legacy-provider react-scripts start",
+    "build": "cross-env NODE_OPTIONS=--openssl-legacy-provider react-scripts build",
     "server": "node src/server.js",
     "test": "NODE_OPTIONS=--openssl-legacy-provider react-scripts test --env=jsdom",
     "eject": "react-scripts eject",
@@ -96,7 +97,9 @@
       {
         "from": "resources/bin/${os}",
         "to": "resources/bin/${os}",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "asarUnpack": [
@@ -166,7 +169,9 @@
         {
           "from": "resources/python/win32",
           "to": "resources/python/win32",
-          "filter": ["**/*"]
+          "filter": [
+            "**/*"
+          ]
         }
       ]
     },
