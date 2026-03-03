@@ -188,7 +188,8 @@
         "deb"
       ],
       "icon": "icon/icon.png",
-      "category": "Science"
+      "category": "Science",
+      "maintainer": "ARTIC network <artic@artic.network>"
     },
     "extraMetadata": {
       "main": "src/electron.js"
