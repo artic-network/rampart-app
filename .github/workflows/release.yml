@@ -27,22 +27,30 @@ jobs:
       - name: Decode signing certificate
         run: echo "${{ secrets.PROD_MACOS_CERTIFICATE }}" | base64 --decode > /tmp/certificate.p12
 
-      - name: Verify secrets are set
-        run: |
-          echo "APPLE_ID set: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID != '' }}"
-          echo "TEAM_ID set: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID != '' }}"
-          echo "PWD set: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD != '' }}"
-          echo "CERT set: ${{ secrets.PROD_MACOS_CERTIFICATE != '' }}"
-
       - name: Build and sign macOS app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: /tmp/certificate.p12
           CSC_KEY_PASSWORD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+        run: npm run dist:mac
+
+      - name: Notarize macOS app
+        env:
           APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
           APPLE_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-        run: npm run dist:mac
+        run: |
+          APP_PATH="dist/mac/RAMPART.app"
+          DMG_PATH=$(ls dist/*.dmg | head -1)
+          echo "Notarizing $DMG_PATH"
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --output-format json
+          echo "Stapling $DMG_PATH"
+          xcrun stapler staple "$DMG_PATH"
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
