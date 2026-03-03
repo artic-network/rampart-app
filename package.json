@@ -63,7 +63,8 @@
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
-    "dist:all": "npm run build && electron-builder --mac --win"
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:all": "npm run build && electron-builder --mac --win --linux"
   },
   "browserslist": {
     "production": [
@@ -186,6 +187,7 @@
         "AppImage",
         "deb"
       ],
+      "icon": "icon/icon.png",
       "category": "Science"
     },
     "extraMetadata": {

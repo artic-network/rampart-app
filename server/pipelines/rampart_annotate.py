@@ -58,6 +58,58 @@ def parse_args():
         default='display_name',
         help='Reference fields to extract from FASTA headers (format: field_name[header_key], default: display_name[display_name])'
     )
+
+    # Mappy / minimap2 sensitivity options
+    parser.add_argument(
+        '-k', '--kmer',
+        type=int,
+        default=None,
+        help='Minimizer k-mer length (default: preset value, typically 15 for map-ont). '
+             'Lower values (e.g. 13) increase sensitivity for divergent sequences.'
+    )
+    parser.add_argument(
+        '-w', '--window',
+        type=int,
+        default=None,
+        help='Minimizer window size (default: preset value). '
+             'Lower values increase sensitivity at the cost of speed.'
+    )
+    parser.add_argument(
+        '--min-cnt',
+        type=int,
+        default=None,
+        help='Minimum number of minimizers on a chain (default: preset value, typically 3). '
+             'Lower values (e.g. 2) increase sensitivity.'
+    )
+    parser.add_argument(
+        '--min-chain-score',
+        type=int,
+        default=None,
+        help='Minimum chaining score (default: preset value). '
+             'Lower values allow shorter/weaker alignments through.'
+    )
+    parser.add_argument(
+        '--min-dp-score',
+        type=int,
+        default=None,
+        help='Minimum dynamic programming alignment score (default: preset value). '
+             'Lower values allow weaker DP alignments.'
+    )
+    parser.add_argument(
+        '--best-n',
+        type=int,
+        default=1,
+        help='Report at most this many alignments per read (default: 1, i.e. best hit only).'
+    )
+    parser.add_argument(
+        '--score-n',
+        type=int,
+        default=1,
+        help='Penalty for aligning against ambiguous bases (N). '
+             'Set to 0 (--score-n 0) to ignore N mismatches, which is useful for '
+             'viral reference genomes with N-padded regions. '
+             'Corresponds to the 7th element of the minimap2 scoring vector (default: 1).'
+    )
     return parser.parse_args()
 
 
@@ -199,12 +251,36 @@ def annotate_reads(args):
     
     # Initialize minimap2 aligner with mappy
     print(f"Initializing minimap2 with {args.threads} threads...", file=sys.stderr)
-    aligner = mappy.Aligner(
-        args.reference,
-        preset='map-ont',
-        n_threads=args.threads,
-        extra_flags=0x4000000  # --secondary=no
-    )
+
+    # Build aligner kwargs — only pass values that were explicitly set
+    aligner_kwargs = {
+        'preset': 'map-ont',
+        'n_threads': args.threads,
+        'best_n': args.best_n,
+    }
+
+    if args.kmer is not None:
+        aligner_kwargs['k'] = args.kmer
+    if args.window is not None:
+        aligner_kwargs['w'] = args.window
+    if args.min_cnt is not None:
+        aligner_kwargs['min_cnt'] = args.min_cnt
+    if args.min_chain_score is not None:
+        aligner_kwargs['min_chain_score'] = args.min_chain_score
+    if args.min_dp_score is not None:
+        aligner_kwargs['min_dp_score'] = args.min_dp_score
+
+    # Build the scoring vector if N-penalty differs from default (1), or if any
+    # explicit scoring option requires it.  minimap2 default scoring for map-ont is
+    # approximately [2, 4, 4, 2, 24, 1, 1]. We only construct the vector when
+    # score_n != 1 to avoid overriding the preset's other scoring defaults.
+    if args.score_n != 1:
+        # [match, mismatch, gap_open, gap_extend, long_gap_open, long_gap_extend, N_penalty]
+        aligner_kwargs['scoring'] = [2, 4, 4, 2, 24, 1, args.score_n]
+        print(f"  N-mismatch penalty set to {args.score_n} (scoring vector: {aligner_kwargs['scoring']})",
+              file=sys.stderr)
+
+    aligner = mappy.Aligner(args.reference, **aligner_kwargs)
     
     if not aligner:
         print(f"Error: Failed to load reference {args.reference}", file=sys.stderr)
@@ -246,8 +322,8 @@ def annotate_reads(args):
                         start_time = token.split('=', 1)[1]
                         break
             
-            # Map the read
-            alignments = list(aligner.map(seq))
+            # Map the read (cs=True requests the cs tag for identity calculation)
+            alignments = list(aligner.map(seq, cs=True))
             
             # Handle mappings
             if not alignments:
