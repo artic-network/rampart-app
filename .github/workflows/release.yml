@@ -26,15 +26,16 @@ jobs:
 
       - name: Build and sign macOS app
         env:
-          # Code signing certificate: base64-encoded Developer ID Application .p12
+          # Code signing: CSC_LINK must be base64-encoded .p12 (not a file path)
+          # Generate with: base64 -i cert.p12 | pbcopy
           CSC_LINK: ${{ secrets.PROD_MACOS_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.PROD_MACOS_CERTIFICATE_PWD }}
+          # Skip auto-discovery if no cert is provided (avoids keychain errors)
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.PROD_MACOS_CERTIFICATE != '' && 'true' || 'false' }}
           # Notarization credentials (Apple ID + app-specific password + team)
           APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
           APPLE_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-          # Ensure notarization uses the right tool (Xcode 13+)
-          NOTARIZE_TOOL: notarytool
         run: npm run dist:mac
 
       - name: Upload macOS artifacts
