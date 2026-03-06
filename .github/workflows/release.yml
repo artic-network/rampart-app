@@ -58,7 +58,6 @@ jobs:
           name: mac-artifacts
           path: |
             dist/*.dmg
-            dist/*.zip
             dist/*.blockmap
             dist/latest-mac.yml
 
@@ -90,7 +89,6 @@ jobs:
           name: win-artifacts
           path: |
             dist/*.exe
-            dist/*.zip
             dist/*.blockmap
             dist/latest.yml
 
@@ -160,11 +158,9 @@ jobs:
         with:
           files: |
             dist/mac/*.dmg
-            dist/mac/*.zip
             dist/mac/*.blockmap
             dist/mac/latest-mac.yml
             dist/win/*.exe
-            dist/win/*.zip
             dist/win/*.blockmap
             dist/win/latest.yml
             dist/linux/*.AppImage
