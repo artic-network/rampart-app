@@ -125,9 +125,15 @@ jobs:
           Remove-Item m_stub.c, m_stub.obj -ErrorAction SilentlyContinue
           Write-Host "m.lib stub created at C:\vcpkg\installed\x64-windows\lib\m.lib"
 
+          # MSVC x64 supports all SSE4.1 intrinsics natively but doesn't define __SSE4_1__.
+          # mappy guards its SSE functions with #ifdef __SSE4_1__, so without this define the
+          # functions ksw_extd2_sse etc. compile as empty stubs, causing unresolved externals.
+          # The CL env var appends flags to every cl.exe invocation.
+          $env:CL = "/D__SSE4_1__"
+
           # Build mappy wheel using the full actions/setup-python (has MSVC + now zlib)
           pip install wheel
-          pip wheel mappy --wheel-dir ./mappy_wheels -v
+          pip wheel mappy --wheel-dir ./mappy_wheels
 
           # Download and extract Python embeddable package
           Invoke-WebRequest -Uri $PYTHON_URL -OutFile python-embed.zip
