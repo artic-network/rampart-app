@@ -23,7 +23,6 @@ const path = require('path');
 const url = require('url');
 const fs = require('fs');
 const os = require('os');
-const { spawn } = require('child_process');
 const server = require("../server/server");
 const { getInitialConfig } = require("../server/config/getInitialConfig");
 const startUp = require("../server/startUp");
@@ -208,33 +207,6 @@ async function startServer(settings, sendStatus) {
  * Check that Python is available and mappy is installed.
  * Returns { ok, pythonPath, version, error }
  */
-function checkPythonEnvironment() {
-    return new Promise((resolve) => {
-        const { getPythonPath } = require('../server/bundledResources');
-        const pythonPath = getPythonPath();
-        const child = spawn(pythonPath, ['-c', 'import mappy; print(mappy.__version__)']);
-        let stdout = '';
-        let stderr = '';
-        child.stdout.on('data', (d) => { stdout += d.toString(); });
-        child.stderr.on('data', (d) => { stderr += d.toString(); });
-        child.on('error', (err) => {
-            resolve({ ok: false, pythonPath, error: `Python not found at '${pythonPath}': ${err.message}` });
-        });
-        child.on('exit', (code) => {
-            if (code === 0) {
-                resolve({ ok: true, pythonPath, version: stdout.trim() });
-            } else {
-                const detail = stderr.includes('No module named') ?
-                    `mappy is not installed in the Python environment at '${pythonPath}'.\n\nInstall it with:\n  pip install mappy\n\nor activate the correct conda environment before launching RAMPART.` :
-                    `Python check failed (exit ${code}):\n${stderr.trim() || 'Unknown error'}`;
-                resolve({ ok: false, pythonPath, error: detail });
-            }
-        });
-        // Timeout after 10 seconds
-        setTimeout(() => resolve({ ok: false, pythonPath, error: 'Python check timed out after 10 seconds.' }), 10000);
-    });
-}
-
 function createWindow(showSettings = true) {
     try {
         mainWindow = new BrowserWindow({
@@ -412,34 +384,8 @@ function createLogWindow() {
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
-app.on('ready', async () => {
+app.on('ready', () => {
     buildMenu();
-    // Pre-flight check: verify Python and mappy are available
-    const pyCheck = await checkPythonEnvironment();
-    if (!pyCheck.ok) {
-        console.error('Python environment check failed:', pyCheck.error);
-        // Show a blocking warning dialog before the settings window
-        // We need at least one window or a hidden one for dialog parent
-        await dialog.showMessageBox({
-            type: 'warning',
-            title: 'Missing Dependency: mappy',
-            message: 'RAMPART requires mappy to be installed',
-            detail: pyCheck.error +
-                '\n\nYou can still configure RAMPART, but annotation will fail until mappy is available.' +
-                '\n\nPython used: ' + pyCheck.pythonPath,
-            buttons: ['Continue Anyway', 'Quit'],
-            defaultId: 0,
-            cancelId: 1
-        }).then(({ response }) => {
-            if (response === 1) {
-                app.quit();
-                return;
-            }
-        });
-        // If user chose Quit, the app.quit() above will handle it
-        if (app.isQuitting) return;
-    }
-
     createWindow(true); // Show settings page first
 });
 
