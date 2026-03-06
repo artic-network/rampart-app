@@ -54,7 +54,7 @@ binned*
 *.zip
 
 # example data and protocols (keep in repo but ignore user-generated examples)
-/example_*
+/example*
 
 # bundled resources (platform-specific binaries downloaded during build setup)
 /resources/bin/win32/minimap2.exe
