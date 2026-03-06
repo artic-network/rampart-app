@@ -98,7 +98,10 @@ jobs:
           Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "$PYTHON_DIR\get-pip.py"
           & "$PYTHON_DIR\python.exe" "$PYTHON_DIR\get-pip.py" --no-warn-script-location
 
-          # Install mappy (prebuilt Windows wheel from PyPI)
+          # Install setuptools/wheel so mappy can build from source if no wheel available
+          & "$PYTHON_DIR\python.exe" -m pip install setuptools wheel --no-warn-script-location
+
+          # Install mappy
           & "$PYTHON_DIR\python.exe" -m pip install mappy --no-warn-script-location
 
           # Verify
