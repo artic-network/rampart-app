@@ -38,6 +38,34 @@ let serverStarted = false;
 let userSettings = null;
 let lastServerError = null;
 
+// ── Console log window ────────────────────────────────────────────────────────
+let logWindow = null;
+const logHistory = [];
+const MAX_LOG_HISTORY = 5000;
+
+function appendToLog(level, args) {
+    const msg = args.map(a => {
+        if (typeof a === 'string') return a;
+        try { return JSON.stringify(a, null, 2); } catch (_) { return String(a); }
+    }).join(' ');
+    const entry = { t: Date.now(), level, msg };
+    logHistory.push(entry);
+    if (logHistory.length > MAX_LOG_HISTORY) logHistory.shift();
+    if (logWindow && !logWindow.isDestroyed()) {
+        logWindow.webContents.send('log-entry', entry);
+    }
+}
+
+// Intercept console methods — originals are preserved so terminal still works
+const _origLog   = console.log.bind(console);
+const _origInfo  = console.info.bind(console);
+const _origWarn  = console.warn.bind(console);
+const _origError = console.error.bind(console);
+console.log   = (...a) => { _origLog(...a);   appendToLog('log',   a); };
+console.info  = (...a) => { _origInfo(...a);  appendToLog('info',  a); };
+console.warn  = (...a) => { _origWarn(...a);  appendToLog('warn',  a); };
+console.error = (...a) => { _origError(...a); appendToLog('error', a); };
+
 // Settings file path
 const settingsPath = path.join(app.getPath('userData'), 'rampart-settings.json');
 
@@ -135,8 +163,15 @@ async function startServer(settings, sendStatus) {
         global.datastore = new Datastore();
         global.filesSeen = new Set();
 
-        // Get the correct build path for packaged app
-        const buildPath = path.join(app.getAppPath(), 'build');
+        // Get the correct build path for packaged app.
+        // In a packaged asar build, app.getAppPath() returns the .asar path, but
+        // express.static / createReadStream cannot read from inside an asar archive.
+        // Because build/**/* is in asarUnpack, the files are in app.asar.unpacked/.
+        const rawAppPath = app.getAppPath();
+        const resolvedAppPath = rawAppPath.includes('app.asar')
+            ? rawAppPath.replace('app.asar', 'app.asar.unpacked')
+            : rawAppPath;
+        const buildPath = path.join(resolvedAppPath, 'build');
         log('Build path: ' + buildPath);
         log('Build path exists: ' + fs.existsSync(buildPath));
         
@@ -215,7 +250,7 @@ function createWindow(showSettings = true) {
         });
 
         if (showSettings) {
-            mainWindow.loadFile(path.join(__dirname, '../build/settings.html')).catch(err => {
+            mainWindow.loadFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), '../build/settings.html')).catch(err => {
                 console.error('Failed to load settings page:', err);
             });
         } else {
@@ -343,9 +378,37 @@ ipcMain.on('start-server', async (event, settings) => {
 // Add handler to show settings
 ipcMain.on('show-settings', () => {
     if (mainWindow) {
-        mainWindow.loadFile(path.join(__dirname, '../build/settings.html'));
+        mainWindow.loadFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), '../build/settings.html'));
     }
 });
+
+// ── Log window IPC ────────────────────────────────────────────────────────────
+ipcMain.handle('get-log-history', () => logHistory);
+
+ipcMain.on('open-log-window', () => createLogWindow());
+
+function createLogWindow() {
+    if (logWindow && !logWindow.isDestroyed()) {
+        logWindow.show();
+        logWindow.focus();
+        return logWindow;
+    }
+    const unpackedDir = __dirname.replace('app.asar', 'app.asar.unpacked');
+    logWindow = new BrowserWindow({
+        width: 920,
+        height: 580,
+        title: 'RAMPART Console',
+        backgroundColor: '#0d1a1c',
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
+        }
+    });
+    logWindow.loadFile(path.join(unpackedDir, '../build/console.html'));
+    logWindow.on('closed', () => { logWindow = null; });
+    return logWindow;
+}
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
@@ -424,6 +487,11 @@ function buildMenu() {
                             mainWindow.focus();
                         }
                     }
+                },
+                {
+                    label: 'Show Console',
+                    accelerator: 'CmdOrCtrl+Shift+L',
+                    click: () => createLogWindow()
                 },
                 { type: 'separator' },
                 { role: 'minimize' },

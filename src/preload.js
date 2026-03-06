@@ -21,5 +21,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('status-update', (event, message) => {
             if (callback) callback(message);
         });
-    }
+    },
+
+    // Console log window
+    getLogHistory: () => ipcRenderer.invoke('get-log-history'),
+    onLogEntry: (callback) => {
+        ipcRenderer.on('log-entry', (event, entry) => {
+            if (callback) callback(entry);
+        });
+    },
+    openLogWindow: () => ipcRenderer.send('open-log-window'),
 });

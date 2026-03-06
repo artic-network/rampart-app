@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAMPART Console</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: "SF Mono", "Fira Code", "Menlo", monospace;
+            font-size: 12px;
+            background: #0d1a1c;
+            color: #c8d8d8;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Toolbar ─────────────────────────────────────────────────── */
+        #toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: #02292e;
+            border-bottom: 1px solid #005c68;
+            flex-shrink: 0;
+        }
+
+        #filter {
+            flex: 1;
+            background: #0d1a1c;
+            border: 1px solid #005c68;
+            border-radius: 4px;
+            color: #F6EECA;
+            padding: 4px 8px;
+            font-family: inherit;
+            font-size: 12px;
+            outline: none;
+        }
+        #filter:focus { border-color: #22968B; }
+        #filter::placeholder { color: #4a7a7a; }
+
+        .btn {
+            background: #005c68;
+            color: #F6EECA;
+            border: 1px solid #22968B;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .btn:hover { background: #22968B; }
+        .btn.active { background: #22968B; border-color: #F6EECA; }
+
+        #level-filters { display: flex; gap: 4px; }
+
+        #count {
+            color: #4a7a7a;
+            font-size: 11px;
+            white-space: nowrap;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* ── Log area ────────────────────────────────────────────────── */
+        #log-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            padding: 4px 0;
+        }
+
+        .entry {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            padding: 1px 10px;
+            line-height: 1.55;
+            border-left: 2px solid transparent;
+        }
+        .entry:hover { background: rgba(255,255,255,0.04); }
+
+        .entry.level-log  { border-left-color: #22968B; }
+        .entry.level-warn { border-left-color: #d4a843; color: #f0d080; background: rgba(212,168,67,0.06); }
+        .entry.level-error{ border-left-color: #e06962; color: #f0a09a; background: rgba(224,105,98,0.08); }
+        .entry.level-info { border-left-color: #5bafd6; }
+
+        .ts {
+            color: #3d6060;
+            flex-shrink: 0;
+            user-select: none;
+            font-size: 10px;
+            padding-top: 1px;
+        }
+
+        .lvl {
+            flex-shrink: 0;
+            font-size: 10px;
+            font-weight: bold;
+            width: 34px;
+            text-align: right;
+        }
+        .level-log  .lvl { color: #22968B; }
+        .level-warn .lvl { color: #d4a843; }
+        .level-error .lvl { color: #e06962; }
+        .level-info .lvl { color: #5bafd6; }
+
+        .msg {
+            white-space: pre-wrap;
+            word-break: break-all;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .highlight { background: rgba(246,238,202,0.25); border-radius: 2px; }
+
+        #empty {
+            color: #3d6060;
+            text-align: center;
+            padding: 40px;
+            display: none;
+        }
+
+        /* ── Scrollbar ───────────────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #005c68; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <input id="filter" type="text" placeholder="Filter…" autocomplete="off" spellcheck="false">
+        <div id="level-filters">
+            <button class="btn active" data-level="log"  title="Toggle log">LOG</button>
+            <button class="btn active" data-level="info" title="Toggle info">INF</button>
+            <button class="btn active" data-level="warn" title="Toggle warn">WRN</button>
+            <button class="btn active" data-level="error" title="Toggle error">ERR</button>
+        </div>
+        <button class="btn" id="btn-scroll" title="Toggle auto-scroll (currently ON)">↓ Auto</button>
+        <button class="btn" id="btn-clear" title="Clear console">Clear</button>
+        <span id="count"></span>
+    </div>
+    <div id="log-container"></div>
+    <div id="empty">No log entries yet.</div>
+
+<script>
+(function () {
+    'use strict';
+
+    const container = document.getElementById('log-container');
+    const filterEl  = document.getElementById('filter');
+    const countEl   = document.getElementById('count');
+    const emptyEl   = document.getElementById('empty');
+    const btnScroll = document.getElementById('btn-scroll');
+    const btnClear  = document.getElementById('btn-clear');
+
+    let autoScroll = true;
+    let filterText = '';
+    const enabledLevels = new Set(['log', 'info', 'warn', 'error']);
+    const ALL_ENTRIES = [];  // raw {t, level, msg}
+
+    // ── Helpers ────────────────────────────────────────────────────────
+
+    function ts(epoch) {
+        const d = new Date(epoch);
+        const hh = String(d.getHours()).padStart(2,'0');
+        const mm = String(d.getMinutes()).padStart(2,'0');
+        const ss = String(d.getSeconds()).padStart(2,'0');
+        const ms = String(d.getMilliseconds()).padStart(3,'0');
+        return `${hh}:${mm}:${ss}.${ms}`;
+    }
+
+    function escapeHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function highlightMatch(html, text) {
+        if (!text) return html;
+        const escaped = text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        return html.replace(new RegExp(escaped, 'gi'), m => `<span class="highlight">${m}</span>`);
+    }
+
+    function buildRow(entry) {
+        const row = document.createElement('div');
+        row.className = `entry level-${entry.level}`;
+        const msgHtml = highlightMatch(escapeHtml(entry.msg), filterText);
+        row.innerHTML =
+            `<span class="ts">${ts(entry.t)}</span>` +
+            `<span class="lvl">${entry.level.toUpperCase()}</span>` +
+            `<span class="msg">${msgHtml}</span>`;
+        return row;
+    }
+
+    function isVisible(entry) {
+        if (!enabledLevels.has(entry.level)) return false;
+        if (filterText && !entry.msg.toLowerCase().includes(filterText.toLowerCase())) return false;
+        return true;
+    }
+
+    function rebuildAll() {
+        container.innerHTML = '';
+        let shown = 0;
+        for (const e of ALL_ENTRIES) {
+            if (isVisible(e)) {
+                container.appendChild(buildRow(e));
+                shown++;
+            }
+        }
+        countEl.textContent = `${shown}/${ALL_ENTRIES.length}`;
+        emptyEl.style.display = ALL_ENTRIES.length === 0 ? 'block' : 'none';
+        if (autoScroll) container.scrollTop = container.scrollHeight;
+    }
+
+    function appendEntry(entry) {
+        ALL_ENTRIES.push(entry);
+        if (isVisible(entry)) {
+            container.appendChild(buildRow(entry));
+            countEl.textContent = `${container.children.length}/${ALL_ENTRIES.length}`;
+            if (autoScroll) container.scrollTop = container.scrollHeight;
+        }
+        emptyEl.style.display = 'none';
+    }
+
+    // ── Auto-scroll detection ──────────────────────────────────────────
+
+    container.addEventListener('scroll', () => {
+        const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 40;
+        if (autoScroll && !atBottom) {
+            autoScroll = false;
+            btnScroll.classList.remove('active');
+            btnScroll.title = 'Toggle auto-scroll (currently OFF)';
+        }
+    });
+
+    // ── Toolbar events ─────────────────────────────────────────────────
+
+    btnScroll.addEventListener('click', () => {
+        autoScroll = !autoScroll;
+        btnScroll.classList.toggle('active', autoScroll);
+        btnScroll.title = `Toggle auto-scroll (currently ${autoScroll ? 'ON' : 'OFF'})`;
+        if (autoScroll) container.scrollTop = container.scrollHeight;
+    });
+
+    btnClear.addEventListener('click', () => {
+        ALL_ENTRIES.length = 0;
+        container.innerHTML = '';
+        countEl.textContent = '0/0';
+        emptyEl.style.display = 'block';
+    });
+
+    filterEl.addEventListener('input', () => {
+        filterText = filterEl.value;
+        rebuildAll();
+    });
+
+    document.getElementById('level-filters').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-level]');
+        if (!btn) return;
+        const level = btn.dataset.level;
+        if (enabledLevels.has(level)) {
+            enabledLevels.delete(level);
+            btn.classList.remove('active');
+        } else {
+            enabledLevels.add(level);
+            btn.classList.add('active');
+        }
+        rebuildAll();
+    });
+
+    // ── Keyboard shortcut: Ctrl/Cmd+K to clear ───────────────────────
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            btnClear.click();
+        }
+    });
+
+    // ── IPC ────────────────────────────────────────────────────────────
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!window.electronAPI) {
+            appendEntry({ t: Date.now(), level: 'warn', msg: 'electronAPI not available — running outside Electron?' });
+            return;
+        }
+
+        // Load existing history
+        const history = await window.electronAPI.getLogHistory();
+        for (const entry of history) {
+            ALL_ENTRIES.push(entry);
+        }
+        rebuildAll();
+
+        // Subscribe to live entries
+        window.electronAPI.onLogEntry((entry) => {
+            appendEntry(entry);
+        });
+    });
+})();
+</script>
+</body>
+</html>
