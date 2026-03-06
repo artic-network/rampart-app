@@ -18,6 +18,7 @@
  * ------------------------------------------------------------------------
  */
 
+const path = require('path');
 const { UNMAPPED_LABEL } = require("../magics");
 const { ensurePathExists, normalizePath, getAbsolutePath, log, verbose, fatal } = require("../utils");
 const { newSampleColour } = require("../colours");
@@ -123,6 +124,7 @@ function setUpPathCascade(args) {
     }
 
     pathCascade.push("./"); // add current working directory
+    pathCascade.push(normalizePath(path.join(__dirname, '../../'))); // built-in app defaults
 
     pathCascade.forEach((p, i) => {
         verbose("config", `path cascade ${i}: ${p}`);
