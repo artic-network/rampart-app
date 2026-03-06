@@ -199,6 +199,21 @@ function checkPipeline(config, key, pipeline, giveWarning = false) {
                 message = `Python script doesn't exist`;
             }
         }
+    } else if (!message && pipeline.type === 'node') {
+        /* For Node.js pipelines, check that the script exists */
+        const coreScripts = ['rampart_annotate.js'];
+        if (coreScripts.includes(pipeline.script)) {
+            const serverDir = __dirname.replace('app.asar', 'app.asar.unpacked').replace(/config$/, '');
+            const bundledScriptPath = path.join(serverDir, 'pipelines', pipeline.script);
+            if (!fs.existsSync(bundledScriptPath)) {
+                message = `bundled Node.js script doesn't exist at ${bundledScriptPath}`;
+            }
+        } else {
+            const scriptPath = path.join(pipeline.path, pipeline.script);
+            if (!fs.existsSync(scriptPath)) {
+                message = `Node.js script doesn't exist`;
+            }
+        }
     } else if (!message && !fs.existsSync(pipeline.path + "Snakefile")) {
         message = `Snakefile doesn't exist`;
     }
