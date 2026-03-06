@@ -97,6 +97,9 @@ jobs:
           $env:INCLUDE = "C:\vcpkg\installed\x64-windows\include;$env:INCLUDE"
           $env:LIB     = "C:\vcpkg\installed\x64-windows\lib;$env:LIB"
 
+          # mappy's linker asks for 'z.lib' (Unix name) but vcpkg installs 'zlib.lib' — alias it
+          Copy-Item "C:\vcpkg\installed\x64-windows\lib\zlib.lib" "C:\vcpkg\installed\x64-windows\lib\z.lib"
+
           # Build mappy wheel using the full actions/setup-python (has MSVC + now zlib)
           pip install wheel
           pip wheel mappy --wheel-dir ./mappy_wheels
