@@ -98,8 +98,8 @@ jobs:
           make
           mkdir -p ../resources/bin/win32
           cp minimap2.exe ../resources/bin/win32/
-          # Copy any MinGW runtime DLLs needed by the binary
-          ldd minimap2.exe | grep -i mingw | awk '{print $3}' | xargs -I{} cp {} ../resources/bin/win32/ 2>/dev/null || true
+          # Copy any MinGW/MSYS2 runtime DLLs needed by the binary
+          ldd minimap2.exe | grep -iE 'mingw|msys' | awk '{print $3}' | xargs -I{} cp {} ../resources/bin/win32/ 2>/dev/null || true
           echo "minimap2.exe built and installed to resources/bin/win32/"
 
       - name: Build Windows app

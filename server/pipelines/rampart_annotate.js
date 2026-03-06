@@ -186,7 +186,14 @@ async function run({
     const counts = { total: 0, mapped: 0, unmapped: 0 };
 
     await new Promise((resolve, reject) => {
-        const mm2 = spawn(minimap2Path, mm2Args);
+        // On Windows, the bundled minimap2.exe co-locates its MinGW/MSYS2 runtime DLLs
+        // next to the binary. We must add that directory to PATH so Windows finds them.
+        const spawnEnv = { ...process.env };
+        const mm2Dir = path.dirname(minimap2Path);
+        if (mm2Dir && mm2Dir !== '.') {
+            spawnEnv.PATH = mm2Dir + path.delimiter + (spawnEnv.PATH || '');
+        }
+        const mm2 = spawn(minimap2Path, mm2Args, { env: spawnEnv });
 
         let pafBuf = '';
 
