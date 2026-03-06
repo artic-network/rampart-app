@@ -78,17 +78,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download minimap2 for Windows
-        shell: pwsh
+      - name: Install minimap2 via MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: mingw-w64-x86_64-minimap2
+
+      - name: Copy minimap2.exe to resources
+        shell: msys2 {0}
         run: |
-          $MM2_VERSION = "2.28"
-          $MM2_URL = "https://github.com/lh3/minimap2/releases/download/v$MM2_VERSION/minimap2-${MM2_VERSION}_win64.zip"
-          Write-Host "Downloading minimap2 $MM2_VERSION for Windows..."
-          Invoke-WebRequest -Uri $MM2_URL -OutFile minimap2-win.zip
-          Expand-Archive minimap2-win.zip -DestinationPath minimap2-win
-          $mm2Exe = Get-ChildItem minimap2-win -Recurse -Filter "minimap2.exe" | Select-Object -First 1
-          Copy-Item $mm2Exe.FullName "resources\bin\win32\minimap2.exe"
-          Write-Host "minimap2.exe installed to resources\bin\win32\"
+          mkdir -p resources/bin/win32
+          cp /mingw64/bin/minimap2.exe resources/bin/win32/minimap2.exe
+          echo "minimap2.exe installed to resources/bin/win32/"
 
       - name: Build Windows app
         env:
