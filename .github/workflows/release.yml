@@ -78,6 +78,32 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Bundle Python embeddable with mappy
+        shell: pwsh
+        run: |
+          $PYTHON_VERSION = "3.12.2"
+          $PYTHON_URL = "https://www.python.org/ftp/python/$PYTHON_VERSION/python-$PYTHON_VERSION-embed-amd64.zip"
+          $PYTHON_DIR = "resources\python\win32"
+
+          # Download and extract Python embeddable package
+          Invoke-WebRequest -Uri $PYTHON_URL -OutFile python-embed.zip
+          Expand-Archive python-embed.zip -DestinationPath $PYTHON_DIR
+          Remove-Item python-embed.zip
+
+          # Enable site-packages so pip-installed packages are importable
+          $PTH_FILE = "$PYTHON_DIR\python312._pth"
+          (Get-Content $PTH_FILE) -replace '#import site', 'import site' | Set-Content $PTH_FILE
+
+          # Bootstrap pip into the embeddable Python
+          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "$PYTHON_DIR\get-pip.py"
+          & "$PYTHON_DIR\python.exe" "$PYTHON_DIR\get-pip.py" --no-warn-script-location
+
+          # Install mappy (prebuilt Windows wheel from PyPI)
+          & "$PYTHON_DIR\python.exe" -m pip install mappy --no-warn-script-location
+
+          # Verify
+          & "$PYTHON_DIR\python.exe" -c "import mappy; print('mappy', mappy.__version__, 'bundled successfully')"
+
       - name: Build Windows app
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
