@@ -78,19 +78,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install minimap2 via MSYS2
+      - name: Build minimap2 for Windows
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: false
-          install: mingw-w64-x86_64-minimap2
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-zlib
+            make
 
-      - name: Copy minimap2.exe to resources
+      - name: Compile minimap2 and install to resources
         shell: msys2 {0}
         run: |
-          mkdir -p resources/bin/win32
-          cp /mingw64/bin/minimap2.exe resources/bin/win32/minimap2.exe
-          echo "minimap2.exe installed to resources/bin/win32/"
+          MM2_VERSION="2.28"
+          curl -sL "https://github.com/lh3/minimap2/releases/download/v${MM2_VERSION}/minimap2-${MM2_VERSION}.tar.bz2" -o minimap2.tar.bz2
+          tar -xjf minimap2.tar.bz2
+          cd minimap2-${MM2_VERSION}
+          make
+          mkdir -p ../resources/bin/win32
+          cp minimap2.exe ../resources/bin/win32/
+          # Copy any MinGW runtime DLLs needed by the binary
+          ldd minimap2.exe | grep -i mingw | awk '{print $3}' | xargs -I{} cp {} ../resources/bin/win32/ 2>/dev/null || true
+          echo "minimap2.exe built and installed to resources/bin/win32/"
 
       - name: Build Windows app
         env:
