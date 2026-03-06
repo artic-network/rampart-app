@@ -100,9 +100,20 @@ jobs:
           # mappy's linker asks for 'z.lib' (Unix name) but vcpkg installs 'zlib.lib' — alias it
           Copy-Item "C:\vcpkg\installed\x64-windows\lib\zlib.lib" "C:\vcpkg\installed\x64-windows\lib\z.lib"
 
+          # mappy also links against 'pthread.lib' but vcpkg installs it as 'pthreadVC*.lib' — alias it
+          $pthreadLib = Get-ChildItem "C:\vcpkg\installed\x64-windows\lib\pthread*.lib" | Select-Object -First 1
+          if ($pthreadLib) {
+            Write-Host "Aliasing $($pthreadLib.FullName) -> pthread.lib"
+            Copy-Item $pthreadLib.FullName "C:\vcpkg\installed\x64-windows\lib\pthread.lib"
+          } else {
+            Write-Error "No pthread*.lib found in vcpkg lib - pthreads install may have failed"
+          }
+
+          Write-Host "vcpkg lib contents:"; Get-ChildItem "C:\vcpkg\installed\x64-windows\lib" | Where-Object { $_.Name -match "z|pthread" }
+
           # Build mappy wheel using the full actions/setup-python (has MSVC + now zlib)
           pip install wheel
-          pip wheel mappy --wheel-dir ./mappy_wheels
+          pip wheel mappy --wheel-dir ./mappy_wheels -v
 
           # Download and extract Python embeddable package
           Invoke-WebRequest -Uri $PYTHON_URL -OutFile python-embed.zip
