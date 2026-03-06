@@ -14,6 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { getAbsolutePath, warn, fatal, ensurePathExists, verbose } = require("../utils");
 const { assert, findConfigFile, getBarcodesInConfig } = require("./helpers");
 const { addToParsingQueue } = require("../annotationParser");
@@ -142,6 +143,23 @@ function parseAnnotationRequires(pipeline, config, pathCascade, args) {
                 // override the references path if specified on the command line
                 filepath = getAbsolutePath(args.referencesPath, {relativeTo: process.cwd()});
                 ensurePathExists(filepath);
+            }
+
+            // If no references file found, try to generate one from genome.json's embedded sequence
+            if (!filepath && requirement.config_key === 'references_file') {
+                const ref = config.genome && config.genome.reference;
+                if (ref && ref.sequence) {
+                    const label = ref.label || 'reference';
+                    const fastaContent = `>${label}\n${ref.sequence}\n`;
+                    const tmpFasta = path.join(os.tmpdir(), 'rampart_reference.fasta');
+                    try {
+                        fs.writeFileSync(tmpFasta, fastaContent, 'utf8');
+                        filepath = tmpFasta;
+                        verbose(`Generated reference FASTA from genome.json: ${tmpFasta}`);
+                    } catch (e) {
+                        warn(`Failed to write reference FASTA from genome.json: ${e.message}`);
+                    }
+                }
             }
 
             requirement.path = filepath;

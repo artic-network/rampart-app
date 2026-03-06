@@ -149,6 +149,13 @@ class PipelineRunner {
         const inputFile     = fspath.join(job.input_path, job.filename_stem + job.filename_ext);
         const outputFile    = fspath.join(job.output_path, `${job.filename_stem}.csv`);
         const referencesFile = this._configOptions.references_file;
+        if (!referencesFile) {
+            return reject(new Error(
+                'No references file configured. Provide a FASTA via --referencesPath, ' +
+                'place references.fasta in the protocol directory, or ensure genome.json ' +
+                'contains a reference.sequence field.'
+            ));
+        }
         const refFields     = this._configOptions.reference_fields || 'display_name[display_name]';
         const minIdentity   = this._configOptions.min_identity !== undefined
             ? this._configOptions.min_identity : 0.0;
