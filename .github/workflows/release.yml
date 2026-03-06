@@ -125,20 +125,31 @@ jobs:
           Remove-Item m_stub.c, m_stub.obj -ErrorAction SilentlyContinue
           Write-Host "m.lib stub created at C:\vcpkg\installed\x64-windows\lib\m.lib"
 
-          # MSVC x64 supports all SSE4.1 intrinsics natively but doesn't define __SSE4_1__.
-          # mappy guards its SSE functions with #ifdef __SSE4_1__, so without this define the
-          # functions ksw_extd2_sse etc. compile as empty stubs, causing unresolved externals.
-          # $env:CL appends flags to every cl.exe call — but pip's PEP 517 build isolation
-          # spawns a fresh subprocess that may not inherit it. Use --no-build-isolation so the
-          # build runs in-process where our env vars are guaranteed to be active.
-          $env:CL = "/D__SSE4_1__"
+          # MSVC x64 supports SSE4.1 intrinsics natively but cl.exe rejects the gcc flag
+          # -msse4.1 (D9002 warning), so __SSE4_1__ is never defined. mappy guards its three
+          # SSE kernel files with #ifdef __SSE4_1__ — patch the source directly instead of
+          # fighting env-var propagation through pip's subprocess chain.
 
-          # Pre-install build deps that mappy needs (required because --no-build-isolation
-          # skips pip's automatic build-dep install)
+          # Download mappy source tarball
+          pip download mappy --no-binary :all: --no-deps -d ./mappy_src_pkg
+          $mappyTar = Get-ChildItem ./mappy_src_pkg/mappy*.tar.gz | Select-Object -First 1
+          Write-Host "Patching mappy source: $($mappyTar.FullName)"
+          tar -xzf $mappyTar.FullName -C ./mappy_src_pkg
+
+          $mappyDir = Get-ChildItem ./mappy_src_pkg -Directory | Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "mappy source dir: $mappyDir"
+
+          # Inject #define __SSE4_1__ at the top of each SSE kernel file so MSVC compiles them
+          foreach ($f in @("ksw2_extd2_sse.c", "ksw2_exts2_sse.c", "ksw2_extz2_sse.c")) {
+            $p = "$mappyDir\$f"
+            $original = Get-Content $p -Raw
+            Set-Content $p -Value "#ifndef __SSE4_1__`n#define __SSE4_1__`n#endif`n$original"
+            Write-Host "Patched $f"
+          }
+
+          # Build mappy wheel from patched source; pre-installed build deps, no isolation needed
           pip install setuptools Cython wheel
-
-          # Build mappy wheel in-process (no isolation) so $env:CL is definitely in effect
-          pip wheel mappy --wheel-dir ./mappy_wheels --no-build-isolation
+          pip wheel $mappyDir --wheel-dir ./mappy_wheels --no-build-isolation
 
           # Download and extract Python embeddable package
           Invoke-WebRequest -Uri $PYTHON_URL -OutFile python-embed.zip
