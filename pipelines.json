@@ -1,8 +1,8 @@
 {
   "annotation": {
     "name": "RAMPART Annotation",
-    "type": "python",
-    "script": "rampart_annotate.py",
+    "type": "node",
+    "script": "rampart_annotate.js",
     "path": "./",
     "configOptions": {
       "output_prefix": "annotations",

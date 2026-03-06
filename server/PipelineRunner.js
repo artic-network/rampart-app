@@ -17,7 +17,7 @@ const { spawn } = require('child_process');
 const Deque = require("collections/deque");
 var kill = require('tree-kill');
 const { verbose, warn } = require("./utils");
-const { getPythonPath, getPythonEnv } = require("./bundledResources");
+const { getPythonPath, getPythonEnv, getMinimap2Path } = require("./bundledResources");
 
 const sendCurrentPipelineStatuses = () => {
     Object.values(global.pipelineRunners).forEach((r) => r._resendLastMessage());
@@ -38,25 +38,36 @@ class PipelineRunner {
      */
     constructor({config, onSuccess=false, queue=false}) {
         this._name = config.name;
-        this._type = config.type || 'snakemake'; // 'snakemake' or 'python'
+        this._type = config.type || 'snakemake'; // 'snakemake', 'python', or 'node'
         this._snakefile = config.path + "Snakefile";
-        
-        // Handle Python script path: Use bundled version for core annotation script
+
+        // Resolve the script path for python or node pipeline types
+        this._pythonScript = null;
+        this._nodeScript   = null;
+
         if (config.script) {
-            const scriptName = config.script;
-            // Check if this is the core bundled annotation script
-            if (scriptName === 'rampart_annotate.py') {
-                // Use bundled version from server/pipelines/ (must use unpacked path, not inside .asar)
-                const path = require('path');
-                const unpackedDir = __dirname.replace('app.asar', 'app.asar.unpacked');
-                this._pythonScript = path.join(unpackedDir, 'pipelines', scriptName);
-                verbose('pipeline', `Using bundled annotation script: ${this._pythonScript}`);
+            const scriptName   = config.script;
+            const scriptPath   = require('path');
+            // Core bundled scripts live in server/pipelines/ and must use the unpacked asar path
+            const coreScripts  = ['rampart_annotate.py', 'rampart_annotate.js'];
+            const unpackedDir  = __dirname.replace('app.asar', 'app.asar.unpacked');
+
+            if (this._type === 'node') {
+                if (coreScripts.includes(scriptName)) {
+                    this._nodeScript = scriptPath.join(unpackedDir, 'pipelines', scriptName);
+                } else {
+                    this._nodeScript = config.path + scriptName;
+                }
+                verbose('pipeline', `Using Node.js annotation script: ${this._nodeScript}`);
             } else {
-                // Use protocol-provided script
-                this._pythonScript = config.path + scriptName;
+                // python type
+                if (coreScripts.includes(scriptName)) {
+                    this._pythonScript = scriptPath.join(unpackedDir, 'pipelines', scriptName);
+                } else {
+                    this._pythonScript = config.path + scriptName;
+                }
+                verbose('pipeline', `Using Python annotation script: ${this._pythonScript}`);
             }
-        } else {
-            this._pythonScript = null;
         }
         
         this._configfile = config.config_file ?
@@ -167,6 +178,10 @@ class PipelineRunner {
     async _runPipeline(job) {
         return new Promise((resolve, reject) => {
             
+            if (this._type === 'node') {
+                return this._runNodeScript(job, resolve, reject);
+            }
+
             if (this._type === 'python') {
                 return this._runPythonScript(job, resolve, reject);
             }
@@ -247,6 +262,66 @@ class PipelineRunner {
                     reject(`pipeline (${this._name}) finished with exit code ${code}`);
                 }
             });
+        });
+    }
+
+    /**
+     * Run the built-in Node.js annotation script in-process (no subprocess).
+     * Uses require() + run() for efficiency and avoids any Python dependency.
+     * @private
+     */
+    _runNodeScript(job, resolve, reject) {
+        const fspath = require('path');
+
+        const inputFile     = fspath.join(job.input_path, job.filename_stem + job.filename_ext);
+        const outputFile    = fspath.join(job.output_path, `${job.filename_stem}.csv`);
+        const referencesFile = this._configOptions.references_file;
+        const refFields     = this._configOptions.reference_fields || 'display_name[display_name]';
+        const minIdentity   = this._configOptions.min_identity !== undefined
+            ? this._configOptions.min_identity : 0.0;
+
+        // Infer barcode from the input path
+        const pathParts = job.input_path.split(fspath.sep);
+        let barcode = 'unknown';
+        for (let i = pathParts.length - 1; i >= 0; i--) {
+            if (pathParts[i].startsWith('barcode')) { barcode = pathParts[i]; break; }
+        }
+
+        verbose(`pipeline (${this._name})`,
+            `annotate: ${inputFile} → ${outputFile} (ref: ${referencesFile}, barcode: ${barcode})`);
+
+        this._sendMessage('start', job.filename_stem || barcode);
+
+        // Require the script module fresh each time (clear cache so concurrent runs are isolated)
+        delete require.cache[require.resolve(this._nodeScript)];
+        const { run } = require(this._nodeScript);
+
+        // Keep a lightweight cancellation flag (terminate sets _cancelled)
+        this._cancelled = false;
+
+        run({
+            inputFile,
+            referenceFile:  referencesFile,
+            outputFile,
+            barcode,
+            threads:        this._threadsRequested,
+            minimap2Path:   getMinimap2Path(),
+            refFieldsSpec:  refFields,
+            minIdentity,
+            onMessage: (msg) => {
+                verbose(`pipeline (${this._name})`, msg);
+                this._sendMessage('info', msg);
+            },
+        })
+        .then(() => {
+            this._sendMessage('success', job.filename_stem || barcode);
+            resolve();
+        })
+        .catch((err) => {
+            const msg = err.message || String(err);
+            this._sendMessage('error', `Job failed: ${msg}`);
+            warn(`pipeline (${this._name}) error: ${msg}`);
+            reject(msg);
         });
     }
 

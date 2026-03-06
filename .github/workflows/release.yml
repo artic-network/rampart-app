@@ -75,104 +75,20 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Setup Python (for building mappy wheel)
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-
-      - name: Install zlib and pthreads (required to compile mappy)
-        run: vcpkg install zlib:x64-windows pthreads:x64-windows
-
       - name: Install dependencies
         run: npm ci
 
-      - name: Bundle Python embeddable with mappy
+      - name: Download minimap2 for Windows
         shell: pwsh
         run: |
-          $PYTHON_VERSION = "3.12.2"
-          $PYTHON_URL = "https://www.python.org/ftp/python/$PYTHON_VERSION/python-$PYTHON_VERSION-embed-amd64.zip"
-          $PYTHON_DIR = "resources\python\win32"
-
-          # Point MSVC to vcpkg's zlib headers + libs so mappy can compile
-          $env:INCLUDE = "C:\vcpkg\installed\x64-windows\include;$env:INCLUDE"
-          $env:LIB     = "C:\vcpkg\installed\x64-windows\lib;$env:LIB"
-
-          # mappy's linker asks for 'z.lib' (Unix name) but vcpkg installs 'zlib.lib' — alias it
-          Copy-Item "C:\vcpkg\installed\x64-windows\lib\zlib.lib" "C:\vcpkg\installed\x64-windows\lib\z.lib"
-
-          # mappy also links against 'pthread.lib' but vcpkg installs it as 'pthreadVC*.lib' — alias it
-          $pthreadLib = Get-ChildItem "C:\vcpkg\installed\x64-windows\lib\pthread*.lib" | Select-Object -First 1
-          if ($pthreadLib) {
-            Write-Host "Aliasing $($pthreadLib.FullName) -> pthread.lib"
-            Copy-Item $pthreadLib.FullName "C:\vcpkg\installed\x64-windows\lib\pthread.lib"
-          } else {
-            Write-Error "No pthread*.lib found in vcpkg lib - pthreads install may have failed"
-          }
-
-          Write-Host "vcpkg lib contents:"; Get-ChildItem "C:\vcpkg\installed\x64-windows\lib" | Where-Object { $_.Name -match "z|pthread" }
-
-          # mappy also links against 'm.lib' (Unix math lib) which doesn't exist on MSVC — create a stub
-          # (MSVC includes math functions in the CRT, so m.lib can be an empty archive)
-          $vsPath = & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          $msvcRoot = Get-ChildItem "$vsPath\VC\Tools\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty FullName
-          $clExe  = "$msvcRoot\bin\HostX64\x64\cl.exe"
-          $libExe = "$msvcRoot\bin\HostX64\x64\lib.exe"
-          Write-Host "Using cl.exe:  $clExe"
-          Write-Host "Using lib.exe: $libExe"
-          Set-Content -Path "m_stub.c" -Value "void __m_math_stub(void){}"
-          & $clExe /c /nologo /MD m_stub.c /Fom_stub.obj
-          & $libExe /nologo /out:"C:\vcpkg\installed\x64-windows\lib\m.lib" m_stub.obj
-          Remove-Item m_stub.c, m_stub.obj -ErrorAction SilentlyContinue
-          Write-Host "m.lib stub created at C:\vcpkg\installed\x64-windows\lib\m.lib"
-
-          # MSVC x64 supports SSE4.1 intrinsics natively but cl.exe rejects the gcc flag
-          # -msse4.1 (D9002 warning), so __SSE4_1__ is never defined. mappy guards its three
-          # SSE kernel files with #ifdef __SSE4_1__ — patch the source directly instead of
-          # fighting env-var propagation through pip's subprocess chain.
-
-          # Download mappy source tarball
-          pip download mappy --no-binary :all: --no-deps -d ./mappy_src_pkg
-          $mappyTar = Get-ChildItem ./mappy_src_pkg/mappy*.tar.gz | Select-Object -First 1
-          Write-Host "Patching mappy source: $($mappyTar.FullName)"
-          tar -xzf $mappyTar.FullName -C ./mappy_src_pkg
-
-          $mappyDir = Get-ChildItem ./mappy_src_pkg -Directory | Select-Object -First 1 -ExpandProperty FullName
-          Write-Host "mappy source dir: $mappyDir"
-
-          # Inject #define __SSE4_1__ at the top of each SSE kernel file so MSVC compiles them
-          foreach ($f in @("ksw2_extd2_sse.c", "ksw2_exts2_sse.c", "ksw2_extz2_sse.c")) {
-            $p = "$mappyDir\$f"
-            $original = Get-Content $p -Raw
-            Set-Content $p -Value "#ifndef __SSE4_1__`n#define __SSE4_1__`n#endif`n$original"
-            Write-Host "Patched $f"
-          }
-
-          # Build mappy wheel from patched source; pre-installed build deps, no isolation needed
-          pip install setuptools Cython wheel
-          pip wheel $mappyDir --wheel-dir ./mappy_wheels --no-build-isolation
-
-          # Download and extract Python embeddable package
-          Invoke-WebRequest -Uri $PYTHON_URL -OutFile python-embed.zip
-          Expand-Archive python-embed.zip -DestinationPath $PYTHON_DIR
-          Remove-Item python-embed.zip
-
-          # Enable site-packages so pip-installed packages are importable
-          $PTH_FILE = "$PYTHON_DIR\python312._pth"
-          (Get-Content $PTH_FILE) -replace '#import site', 'import site' | Set-Content $PTH_FILE
-
-          # Bootstrap pip into the embeddable Python
-          Invoke-WebRequest -Uri "https://bootstrap.pypa.io/get-pip.py" -OutFile "$PYTHON_DIR\get-pip.py"
-          & "$PYTHON_DIR\python.exe" "$PYTHON_DIR\get-pip.py" --no-warn-script-location
-
-          # Install the pre-built mappy wheel into the embeddable Python (no compilation)
-          & "$PYTHON_DIR\python.exe" -m pip install mappy --find-links ./mappy_wheels --no-index --no-warn-script-location
-
-          # Copy DLLs that mappy.pyd depends on at runtime
-          Copy-Item "C:\vcpkg\installed\x64-windows\bin\zlib1.dll" "$PYTHON_DIR\"
-          Copy-Item "C:\vcpkg\installed\x64-windows\bin\pthread*.dll" "$PYTHON_DIR\"
-
-          # Verify
-          & "$PYTHON_DIR\python.exe" -c "import mappy; print('mappy', mappy.__version__, 'bundled successfully')"
+          $MM2_VERSION = "2.28"
+          $MM2_URL = "https://github.com/lh3/minimap2/releases/download/v$MM2_VERSION/minimap2-${MM2_VERSION}_win64.zip"
+          Write-Host "Downloading minimap2 $MM2_VERSION for Windows..."
+          Invoke-WebRequest -Uri $MM2_URL -OutFile minimap2-win.zip
+          Expand-Archive minimap2-win.zip -DestinationPath minimap2-win
+          $mm2Exe = Get-ChildItem minimap2-win -Recurse -Filter "minimap2.exe" | Select-Object -First 1
+          Copy-Item $mm2Exe.FullName "resources\bin\win32\minimap2.exe"
+          Write-Host "minimap2.exe installed to resources\bin\win32\"
 
       - name: Build Windows app
         env:
@@ -204,6 +120,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Download minimap2 for Linux
+        run: |
+          MM2_VERSION="2.28"
+          curl -fsSL "https://github.com/lh3/minimap2/releases/download/v${MM2_VERSION}/minimap2-${MM2_VERSION}_x64-linux.tar.bz2" \
+            | tar -jxf - --wildcards "*/minimap2" --strip-components=1
+          chmod +x minimap2
+          mv minimap2 resources/bin/linux/minimap2
+          echo "minimap2 installed to resources/bin/linux/"
 
       - name: Build Linux app
         env:

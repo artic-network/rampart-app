@@ -129,13 +129,7 @@
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
-      "extraResources": [
-        {
-          "from": "resources/python/darwin",
-          "to": "resources/python/darwin",
-          "filter": ["**/*"]
-        }
-      ]
+      "extraResources": []
     },
     "dmg": {
       "contents": [
@@ -161,15 +155,7 @@
         }
       ],
       "icon": "icon/icon.ico",
-      "extraResources": [
-        {
-          "from": "resources/python/win32",
-          "to": "resources/python/win32",
-          "filter": [
-            "**/*"
-          ]
-        }
-      ]
+      "extraResources": []
     },
     "nsis": {
       "oneClick": false,
