@@ -80,8 +80,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install zlib (required to compile mappy)
-        run: vcpkg install zlib:x64-windows
+      - name: Install zlib and pthreads (required to compile mappy)
+        run: vcpkg install zlib:x64-windows pthreads:x64-windows
 
       - name: Install dependencies
         run: npm ci
@@ -117,8 +117,9 @@ jobs:
           # Install the pre-built mappy wheel into the embeddable Python (no compilation)
           & "$PYTHON_DIR\python.exe" -m pip install mappy --find-links ./mappy_wheels --no-index --no-warn-script-location
 
-          # Copy zlib DLL so the mappy .pyd can load at runtime
+          # Copy DLLs that mappy.pyd depends on at runtime
           Copy-Item "C:\vcpkg\installed\x64-windows\bin\zlib1.dll" "$PYTHON_DIR\"
+          Copy-Item "C:\vcpkg\installed\x64-windows\bin\pthread*.dll" "$PYTHON_DIR\"
 
           # Verify
           & "$PYTHON_DIR\python.exe" -c "import mappy; print('mappy', mappy.__version__, 'bundled successfully')"
