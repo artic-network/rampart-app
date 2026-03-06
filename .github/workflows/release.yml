@@ -111,6 +111,16 @@ jobs:
 
           Write-Host "vcpkg lib contents:"; Get-ChildItem "C:\vcpkg\installed\x64-windows\lib" | Where-Object { $_.Name -match "z|pthread" }
 
+          # mappy also links against 'm.lib' (Unix math lib) which doesn't exist on MSVC — create a stub
+          # (MSVC includes math functions in the CRT, so m.lib can be an empty archive)
+          $clExe  = (Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Recurse -Filter "cl.exe"  | Where-Object { $_.FullName -match "HostX86\\x64\\cl.exe$"  } | Select-Object -First 1).FullName
+          $libExe = (Get-ChildItem "C:\Program Files\Microsoft Visual Studio" -Recurse -Filter "lib.exe" | Where-Object { $_.FullName -match "HostX86\\x64\\lib.exe$" } | Select-Object -First 1).FullName
+          Set-Content -Path "m_stub.c" -Value "void __m_math_stub(void){}"
+          & $clExe /c /nologo /MD m_stub.c /Fom_stub.obj
+          & $libExe /nologo /out:"C:\vcpkg\installed\x64-windows\lib\m.lib" m_stub.obj
+          Remove-Item m_stub.c, m_stub.obj -ErrorAction SilentlyContinue
+          Write-Host "m.lib stub created"
+
           # Build mappy wheel using the full actions/setup-python (has MSVC + now zlib)
           pip install wheel
           pip wheel mappy --wheel-dir ./mappy_wheels -v
