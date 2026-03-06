@@ -28,17 +28,7 @@ const { PipelineRunner } = require('../PipelineRunner');
 function setUpPipelines(config, args, pathCascade) {
     const pipelineRunners = {}
 
-    /* general assertions / corrections */
-    assert(config.pipelines, "No pipeline configuration has been provided");
-    if (!config.pipelines.path) {
-        throw new Error(
-            "No pipelines.json was found in the path cascade. " +
-            "Please specify a protocol directory containing a pipelines.json, " +
-            "or ensure a pipelines.json exists in the current working directory."
-        );
-    }
-    ensurePathExists(config.pipelines.path);
-    assert(config.pipelines.annotation, "Processing pipeline must define an `annotation` pipeline");
+    assert(config.pipelines && config.pipelines.annotation, "Processing pipeline must define an `annotation` pipeline");
 
     Object.entries(config.pipelines)
         .filter(([key, pipeline]) => key !== "path") // this key is introduced by us upon parsing

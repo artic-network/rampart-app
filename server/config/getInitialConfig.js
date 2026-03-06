@@ -29,7 +29,6 @@ const { readConfigFile, findConfigFile, assert, setBarcodesFromFile } = require(
 const PROTOCOL_FILENAME= "protocol.json";
 const GENOME_CONFIG_FILENAME= "genome.json";
 const PRIMERS_CONFIG_FILENAME = "primers.json";
-const PIPELINES_CONFIG_FILENAME = "pipelines.json";
 const RUN_CONFIG_FILENAME = "run_configuration.json";
 const BARCODES_TO_SAMPLE_FILENAME = "barcodes.csv";
 
@@ -75,7 +74,17 @@ function getInitialConfig(args) {
         display: true
     }];
     config.primers = readConfigFile(pathCascade, PRIMERS_CONFIG_FILENAME);
-    config.pipelines = readConfigFile(pathCascade, PIPELINES_CONFIG_FILENAME);
+    // Always use the built-in Node.js annotation pipeline — no pipelines.json needed
+    config.pipelines = {
+        annotation: {
+            name: "RAMPART Annotation",
+            type: "node",
+            script: "rampart_annotate.js",
+            path: normalizePath(path.join(__dirname, '../pipelines')),
+            configOptions: { output_prefix: "annotations", threads: 4 },
+            requires: [{ file: "references.fasta", config_key: "references_file" }]
+        }
+    };
     config.run = {
         title: `Started @ ${(new Date()).toISOString()}`,
         annotatedPath: "annotations",
@@ -124,7 +133,6 @@ function setUpPathCascade(args) {
     }
 
     pathCascade.push("./"); // add current working directory
-    pathCascade.push(normalizePath(path.join(__dirname, '../../'))); // built-in app defaults
 
     pathCascade.forEach((p, i) => {
         verbose("config", `path cascade ${i}: ${p}`);
