@@ -35,7 +35,9 @@ function getResourcesPath() {
 function getMinimap2Path() {
     const platform = process.platform; // 'darwin', 'win32', 'linux'
     const binaryName = platform === 'win32' ? 'minimap2.exe' : 'minimap2';
-    const bundledPath = path.join(getResourcesPath(), 'bin', platform, binaryName);
+    // Map Node.js platform names to electron-builder ${os} folder names
+    const osFolder = platform === 'win32' ? 'win' : platform === 'darwin' ? 'mac' : 'linux';
+    const bundledPath = path.join(getResourcesPath(), 'bin', osFolder, binaryName);
     
     if (fs.existsSync(bundledPath)) {
         verbose('resources', `Using bundled minimap2: ${bundledPath}`);

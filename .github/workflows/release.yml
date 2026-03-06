@@ -96,11 +96,11 @@ jobs:
           tar -xjf minimap2.tar.bz2
           cd minimap2-${MM2_VERSION}
           make
-          mkdir -p ../resources/bin/win32
-          cp minimap2.exe ../resources/bin/win32/
+          mkdir -p ../resources/bin/win
+          cp minimap2.exe ../resources/bin/win/
           # Copy any MinGW/MSYS2 runtime DLLs needed by the binary
-          ldd minimap2.exe | grep -iE 'mingw|msys' | awk '{print $3}' | xargs -I{} cp {} ../resources/bin/win32/ 2>/dev/null || true
-          echo "minimap2.exe built and installed to resources/bin/win32/"
+          ldd minimap2.exe | grep -iE 'mingw|msys' | awk '{print $3}' | xargs -I{} cp {} ../resources/bin/win/ 2>/dev/null || true
+          echo "minimap2.exe built and installed to resources/bin/win/"
 
       - name: Build Windows app
         env:

@@ -129,8 +129,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "resources/entitlements.mac.plist",
-      "entitlementsInherit": "resources/entitlements.mac.plist",
-      "extraResources": []
+      "entitlementsInherit": "resources/entitlements.mac.plist"
     },
     "dmg": {
       "contents": [
@@ -155,8 +154,7 @@
           ]
         }
       ],
-      "icon": "icon/icon.ico",
-      "extraResources": []
+      "icon": "icon/icon.ico"
     },
     "nsis": {
       "oneClick": false,

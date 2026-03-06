@@ -325,6 +325,16 @@ ipcMain.on('start-server', async (event, settings) => {
     // Wait for page to load
     await new Promise(resolve => setTimeout(resolve, 500));
     
+    // Check minimap2 is available before starting
+    sendStatus('Checking for minimap2...');
+    const mm2Check = await checkMinimap2();
+    if (mm2Check.ok) {
+        sendStatus(`✓ Found minimap2 ${mm2Check.version} (${mm2Check.path})`);
+    } else {
+        sendStatus(`⚠️ minimap2 not found at "${mm2Check.path}": ${mm2Check.error}`);
+        sendStatus('  Annotation will fail. Ensure the bundled binary is intact or install minimap2 on PATH.');
+    }
+
     // Start the server
     sendStatus('Calling startServer...');
     const success = await startServer(settings, sendStatus);
@@ -380,6 +390,36 @@ function createLogWindow() {
     logWindow.loadFile(path.join(unpackedDir, '../build/console.html'));
     logWindow.on('closed', () => { logWindow = null; });
     return logWindow;
+}
+
+/**
+ * Check that minimap2 can be found and executed.
+ * Returns { ok, path, version } on success or { ok: false, path, error } on failure.
+ */
+function checkMinimap2() {
+    return new Promise((resolve) => {
+        const { spawn: _spawn } = require('child_process');
+        const { getMinimap2Path } = require('../server/bundledResources');
+        const mm2Path = getMinimap2Path();
+        const child = _spawn(mm2Path, ['--version']);
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', (d) => { stdout += d.toString(); });
+        child.stderr.on('data', (d) => { stderr += d.toString(); });
+        child.on('error', (err) => {
+            resolve({ ok: false, path: mm2Path, error: err.message });
+        });
+        child.on('exit', (code) => {
+            // minimap2 --version exits 0 and prints version to stdout
+            const version = (stdout + stderr).trim().split('\n')[0];
+            if (code === 0 || version) {
+                resolve({ ok: true, path: mm2Path, version });
+            } else {
+                resolve({ ok: false, path: mm2Path, error: `exited with code ${code}` });
+            }
+        });
+        setTimeout(() => resolve({ ok: false, path: mm2Path, error: 'timed out' }), 5000);
+    });
 }
 
 // This method will be called when Electron has finished
