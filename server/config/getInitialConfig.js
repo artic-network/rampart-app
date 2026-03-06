@@ -51,9 +51,8 @@ const BARCODES_TO_SAMPLE_FILENAME = "barcodes.csv";
  * `primers.json` - a description of the location of amplicons in the current protocol
  *      (for visualization).
  *
- * `pipelines.json` - a list of pipelines available with paths to the Snakemake files. One
- *      pipeline named 'annotator' is used to process reads for RAMPART and must be
- *      present. Other pipelines are used for post-RAMPART processing and analysis.
+ * `pipelines.json` - a list of pipelines available. One pipeline named 'annotation' is used
+ *      to process reads for RAMPART and must be present.
  *
  * `run_configuration.json` - This file provides the configuration for the current run
  *      (e.g., mapping of barcodes to samples, title of run, descriptions etc). It will

@@ -24,8 +24,8 @@ const sendCurrentPipelineStatuses = () => {
 }
 
 /**
- * A class that provides the ability to run a Snakemake pipeline asynchronously. Files or jobs to be
- * processed are added to a queue and processed in turn or a job can be run immediately.
+ * A class that provides the ability to run an annotation pipeline asynchronously. Files or jobs
+ * to be processed are added to a queue and processed in turn or a job can be run immediately.
  */
 class PipelineRunner {
 
@@ -33,13 +33,12 @@ class PipelineRunner {
      * Constructor
      * @property {Object}         opts
      * @property {object}         opts.config         The pipeline config definition.
-     * @property {false|Function} opts.onSuccess      callback when snakemake is successful. Callback arguments: `job`. Only used if `queue` is true.
+     * @property {false|Function} opts.onSuccess      callback when pipeline is successful. Callback arguments: `job`. Only used if `queue` is true.
      * @property {Boolean}        opts.queue
      */
     constructor({config, onSuccess=false, queue=false}) {
         this._name = config.name;
-        this._type = config.type || 'snakemake'; // 'snakemake', 'python', or 'node'
-        this._snakefile = config.path + "Snakefile";
+        this._type = config.type || 'node'; // 'node' or 'python'
 
         // Resolve the script path for python or node pipeline types
         this._pythonScript = null;
@@ -70,10 +69,6 @@ class PipelineRunner {
             }
         }
         
-        this._configfile = config.config_file ?
-            config.path + config.config_file :
-            false;
-
         this._configOptions = config.configOptions;
 
         this._processedCount = 0;
@@ -125,143 +120,21 @@ class PipelineRunner {
         this._jobQueue.push(job);
     }
 
-    _convertConfigObjectToArrayOfStrings(configObject) {
-        const charsToQuote = [" ", "{", "}", "|", ">", "<", "*", "&", ";"];
-        const quoteIfNeeded = (data) => {
-            return charsToQuote.map((c) => data.includes(c)).filter((a) => !!a).length ? `"${data}"` : data
-        }
-        return Object.entries(configObject)
-            .map(([key, value]) => {
-                /* if value is the empty string, snakemake just sees the key */
-                if (value === "") {
-                    return key;
-                }
-                /* string & number values go to key=string.*/
-                if (typeof(value) === "string") {
-                    return `${key}=${quoteIfNeeded(value)}`;
-                }
-                /* number values go to key=string.*/
-                if (typeof(value) === "number") {
-                    return `${key}=${value}`;
-                }
-                /* `key -> [v1, v2, v3]` goes to `key=v1,v2,v3` */
-                if (Array.isArray(value)) {
-                    return `${key}=${quoteIfNeeded(value.join(','))}`;
-                }
-                /* key -> {ik: iv, ...} only works if all the inner values are strings */
-                if (value.constructor === Object) {
-                    const strDict = Object.entries(value)
-                        .map(([innerKey, innerValue]) => {
-                            if (innerValue === "") return innerKey;
-                            if (typeof(innerValue) === "string" || typeof(innerValue) === "number") {
-                                return `${innerKey}:${innerValue}`;
-                            }
-                            warn(`Error parsing dict options for pipeline ${this._key}. Key: ${key}, value: ${value}. Ignoring.`);
-                            return ""
-                        })
-                        .filter((d) => d!=="")
-                        .join(",");
-                    return `${key}=${quoteIfNeeded(strDict)}`;
-                }
-                warn(`Error parsing options for pipeline ${this._key}. Key: ${key}, value: ${value}`);
-                return "";
-            })
-            .filter((d) => d!=="")
-    }
-
     /**
-     * private method to actually spawn a Snakemake pipeline or Python script and capture output.
-     * @param {Object} job snakemake config key-value pairs or script arguments
+     * Dispatch a pipeline job to the appropriate runner (node or python).
+     * @param {Object} job
      * @returns {Promise<*>}
      * @private
      */
     async _runPipeline(job) {
         return new Promise((resolve, reject) => {
-            
             if (this._type === 'node') {
                 return this._runNodeScript(job, resolve, reject);
             }
-
             if (this._type === 'python') {
                 return this._runPythonScript(job, resolve, reject);
             }
-
-            let pipelineConfig = {}; // what snakemake's going to receive via `--config`
-            // add in any (optional) configuration options defined for the entire pipeline
-            if (this._configOptions) {
-                pipelineConfig = {...pipelineConfig, ...this._configOptions}
-            }
-            // add in job-specific config options
-            pipelineConfig = {...pipelineConfig, ...job};
-            let spawnArgs = ['--snakefile', this._snakefile];
-            if (this._configfile) {
-                spawnArgs.push(...['--configfile', this._configfile])
-            }
-            if (Object.keys(pipelineConfig).length) {
-                spawnArgs.push(...['--config', ...this._convertConfigObjectToArrayOfStrings(pipelineConfig)]);
-            }
-            spawnArgs.push('--nolock');
-            spawnArgs.push('--rerun-incomplete');
-
-            /* Snakemake accepts a --cores arg, and 5.11 made this compulsory */
-            spawnArgs.push(...['--cores', this._threadsRequested]);
-
-            verbose(`pipeline (${this._name})`, `snakemake ` + spawnArgs.join(" "));
-
-            this._sendMessage("start", job.name || "");
-
-            // Use the artic-rampart-mpxv conda environment PATH
-            const spawnEnv = {
-                ...process.env,
-                PATH: `/opt/miniconda3/envs/artic-rampart-mpxv/bin:${process.env.PATH}`,
-                CONDA_DEFAULT_ENV: 'artic-rampart-mpxv',
-                CONDA_PREFIX: '/opt/miniconda3/envs/artic-rampart-mpxv'
-            };
-            this._process = spawn('snakemake', spawnArgs, { env: spawnEnv });
-
-            const out = [];
-            this._process.stdout.on(
-                'data',
-                (data) => {
-                    const message = data.toString();
-                    if (message.startsWith("####")) {
-                        // pass message to front end
-                        this._sendMessage("info", message.substring(4).trim());
-                    }
-                    out.push(message);
-                    verbose(`pipeline (${this._name})`, message);
-                }
-            );
-
-            const stderr = [];
-            this._process.stderr.on(
-                'data',
-                (data) => {
-                    stderr.push(data.toString());
-                    // Snakemakes put info on stderr so only show it if it returns an error code
-                    // warn(data.toString());
-                    // TODO -- pass to frontend where appropriate
-                }
-            );
-
-            this._process.on('error', (err) => {
-                this._sendMessage("error", "job failed");
-                this._process = undefined;
-                reject(`pipeline (${this._name}) failed to run - is Snakemake installed and on the Path?`);
-            });
-
-            this._process.on('exit', (code) => {
-                this._process = undefined;
-                if (code === 0) {
-                    this._sendMessage("success", job.name || "");
-                    resolve();
-                } else {
-                    this._sendMessage("error", `Job failed (exit code ${code}`);
-                    warn(`pipeline (${this._name}) finished with exit code ${code}. Error messages:`);
-                    stderr.forEach( (line) => warn(`\t${line}`) );
-                    reject(`pipeline (${this._name}) finished with exit code ${code}`);
-                }
-            });
+            reject(`pipeline (${this._name}) has unknown type '${this._type}'. Expected 'node' or 'python'.`);
         });
     }
 
@@ -484,10 +357,6 @@ class PipelineRunner {
             warn(`Attempted to terminate currently running job for ${this._name} but no job was running!`)
             this._sendMessage("error", "Attempted to terminate currently running job but no job was running!", getTimeNow());
         }
-        // Note that the "main" snakemake process can spawn child processes and that
-        // this._process.kill(<SIGNAL>) will not reach these children! (This is _different_
-        // to using ctrl+c).
-        // `SIGKILL` seems to be the only signal which snakemake respects.
         verbose(`pipeline (${this._name})`, `Killing job (PID: ${this._process.pid})`);
         this._sendMessage("info", "Killing job", getTimeNow());
         kill(this._process.pid, 'SIGKILL');

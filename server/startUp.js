@@ -100,6 +100,3 @@ module.exports = {
 //         global.fastqsSeen.add(path.basename(f));
 //     });
 
-// testing an output pipeline:
-// const { PipelineRunner } = require("./PipelineRunner");
-//const binFastaPipeline = new PipelineRunner(name, snakefilePath, configfilePath, configOptions, queue);
