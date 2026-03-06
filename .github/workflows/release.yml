@@ -128,12 +128,17 @@ jobs:
           # MSVC x64 supports all SSE4.1 intrinsics natively but doesn't define __SSE4_1__.
           # mappy guards its SSE functions with #ifdef __SSE4_1__, so without this define the
           # functions ksw_extd2_sse etc. compile as empty stubs, causing unresolved externals.
-          # The CL env var appends flags to every cl.exe invocation.
+          # $env:CL appends flags to every cl.exe call — but pip's PEP 517 build isolation
+          # spawns a fresh subprocess that may not inherit it. Use --no-build-isolation so the
+          # build runs in-process where our env vars are guaranteed to be active.
           $env:CL = "/D__SSE4_1__"
 
-          # Build mappy wheel using the full actions/setup-python (has MSVC + now zlib)
-          pip install wheel
-          pip wheel mappy --wheel-dir ./mappy_wheels
+          # Pre-install build deps that mappy needs (required because --no-build-isolation
+          # skips pip's automatic build-dep install)
+          pip install setuptools Cython wheel
+
+          # Build mappy wheel in-process (no isolation) so $env:CL is definitely in effect
+          pip wheel mappy --wheel-dir ./mappy_wheels --no-build-isolation
 
           # Download and extract Python embeddable package
           Invoke-WebRequest -Uri $PYTHON_URL -OutFile python-embed.zip
