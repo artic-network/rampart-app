@@ -51,20 +51,14 @@ const makeFileSortFunction = (transform) => (a, b) => {
 const removeExistingAnnotatedCSVs = async () => {
   log(`Clearing CSVs from the annotated folder (${prettyPath(global.config.run.annotatedPath)})`);
 
-  const deleteCSVsRecursive = async (dir) => {
-    const dirents = await readdir(dir, { withFileTypes: true })
-    for (const dirent of dirents) {
-      const res = path.resolve(dir, dirent.name);
-      if (dirent.isDirectory()) {
-        await deleteCSVsRecursive(res);
-      } else {
-        fs.unlinkSync(res);
-      }
+  const dir = global.config.run.annotatedPath;
+  if (!fs.existsSync(dir)) return;
+  const dirents = await readdir(dir, { withFileTypes: true });
+  for (const dirent of dirents) {
+    if (!dirent.isDirectory() && dirent.name.endsWith('.csv')) {
+      fs.unlinkSync(path.resolve(dir, dirent.name));
     }
-    fs.rmdirSync(dir);
-  };
-
-  await deleteCSVsRecursive(global.config.run.annotatedPath);
+  }
 }
 
 /**

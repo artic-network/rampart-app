@@ -78,6 +78,7 @@ const Pipeline = ({pipelineKey: key, data, socket}) => {
 const PipelineLog = ({socket}) => {
   const [state, dispatch] = useReducer(reducer, new Map());
   useEffect(() => {
+    if (!socket) return;
     socket.on("pipeline", (msg) => dispatch(msg));
     return () => {
       console.log("TODO: destroy socket listener when <PipelineLog> unmounts");

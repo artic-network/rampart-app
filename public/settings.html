@@ -280,7 +280,7 @@
             
             <div class="form-group">
                 <label for="protocol">Protocol Directory</label>
-                <span class="help-text">Path to custom protocol (leave empty to use default)</span>
+                <span class="help-text">Path to protocol directory containing pipelines.json, genome.json etc. (optional if pipelines.json exists in the current working directory)</span>
                 <div class="path-input-group">
                     <input type="text" id="protocol" name="protocol" placeholder="Leave empty for default protocol">
                     <button type="button" class="browse-btn" onclick="browsePath('protocol')">Browse</button>
@@ -296,6 +296,15 @@
                     <div class="path-input-group">
                         <input type="text" id="referencesPath" name="referencesPath" placeholder="e.g., references.fasta">
                         <button type="button" class="browse-btn" onclick="browsePath('referencesPath', true)">Browse</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="sampleSheet">Sample Sheet (CSV)</label>
+                    <span class="help-text">CSV file with 'sample' and 'barcode' columns mapping barcodes to sample names</span>
+                    <div class="path-input-group">
+                        <input type="text" id="sampleSheet" name="sampleSheet" placeholder="e.g., barcodes.csv">
+                        <button type="button" class="browse-btn" onclick="browsePath('sampleSheet', true)">Browse</button>
                     </div>
                 </div>
                 
@@ -344,6 +353,7 @@
             document.getElementById('annotatedPath').value = './annotations';
             document.getElementById('protocol').value = '';
             document.getElementById('referencesPath').value = '';
+            document.getElementById('sampleSheet').value = '';
             document.getElementById('clearAnnotated').checked = false;
             document.getElementById('verbose').checked = false;
         }
@@ -369,6 +379,7 @@
                     if (settings.annotatedPath) document.getElementById('annotatedPath').value = settings.annotatedPath;
                     if (settings.protocol) document.getElementById('protocol').value = settings.protocol;
                     if (settings.referencesPath) document.getElementById('referencesPath').value = settings.referencesPath;
+                    if (settings.sampleSheet) document.getElementById('sampleSheet').value = settings.sampleSheet;
                     if (settings.clearAnnotated) document.getElementById('clearAnnotated').checked = settings.clearAnnotated;
                     if (settings.verbose) document.getElementById('verbose').checked = settings.verbose;
                 }
@@ -398,6 +409,7 @@
                 annotatedPath: document.getElementById('annotatedPath').value || './annotations',
                 protocol: document.getElementById('protocol').value || undefined,
                 referencesPath: document.getElementById('referencesPath').value || undefined,
+                sampleSheet: document.getElementById('sampleSheet').value || undefined,
                 clearAnnotated: document.getElementById('clearAnnotated').checked,
                 verbose: document.getElementById('verbose').checked
             };

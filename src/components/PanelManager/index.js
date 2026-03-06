@@ -48,7 +48,7 @@ const PanelManager = ({dataPerSample, combinedData, config, openConfigSidebar, s
     /* If we have new panels (e.g. new sampleNames / barcodes discovered or defined) then set `samplePanelsExpanded`
      * An alternative approach would be to use `useEffect` here.
      */ 
-    if (!isEqual(Object.keys(samplePanelsExpanded), Object.keys(dataPerSample))) {
+    if (dataPerSample && !isEqual(Object.keys(samplePanelsExpanded), Object.keys(dataPerSample))) {
         const state = {};
         Object.keys(dataPerSample).forEach((sampleName) => {
             state[sampleName] = false; // set to false to start with collapsed panels
@@ -59,7 +59,10 @@ const PanelManager = ({dataPerSample, combinedData, config, openConfigSidebar, s
 
     if (!dataPerSample || !combinedData) {
         return (
-            <h1>????</h1>
+            <div style={{display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", opacity: 0.5}}>
+                <h2>Waiting for data...</h2>
+                <p>RAMPART will update automatically when reads are processed.</p>
+            </div>
         );
     }
 

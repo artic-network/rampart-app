@@ -1,0 +1,18 @@
+{
+  "annotation": {
+    "name": "RAMPART Annotation",
+    "type": "python",
+    "script": "rampart_annotate.py",
+    "path": "./",
+    "configOptions": {
+      "output_prefix": "annotations",
+      "threads": 4
+    },
+    "requires": [
+      {
+        "file": "references.fasta",
+        "config_key": "references_file"
+      }
+    ]
+  }
+}

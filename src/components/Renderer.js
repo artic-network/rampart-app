@@ -66,16 +66,13 @@ class Renderer extends React.Component {
                         toggleTheme={this.toggleTheme}
                     />
 
-                    {this.props.mainPage === "loading" ?
-                        (<h1>LOADING</h1>) :
-                        (<PanelManager
-                                dataPerSample={this.props.dataPerSample}
-                                combinedData={this.props.combinedData}
-                                config={this.props.config}
-                                openConfigSidebar={() => this.setSidebarOpenState("config")}
-                                socket={this.props.socket}
-                        />)
-                    }
+                    <PanelManager
+                        dataPerSample={this.props.dataPerSample}
+                        combinedData={this.props.combinedData}
+                        config={this.props.config}
+                        openConfigSidebar={() => this.setSidebarOpenState("config")}
+                        socket={this.props.socket}
+                    />
                     <div id="contextMenuPortal"/>
 
 

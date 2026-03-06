@@ -30,6 +30,13 @@ function setUpPipelines(config, args, pathCascade) {
 
     /* general assertions / corrections */
     assert(config.pipelines, "No pipeline configuration has been provided");
+    if (!config.pipelines.path) {
+        throw new Error(
+            "No pipelines.json was found in the path cascade. " +
+            "Please specify a protocol directory containing a pipelines.json, " +
+            "or ensure a pipelines.json exists in the current working directory."
+        );
+    }
     ensurePathExists(config.pipelines.path);
     assert(config.pipelines.annotation, "Processing pipeline must define an `annotation` pipeline");
 

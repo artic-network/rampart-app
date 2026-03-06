@@ -109,7 +109,6 @@ class App extends Component {
   }
 
   render() {
-    if (!this.state.socket) return null; /* hold off until this is open (opens in <1s) */
     return (
       <WindowMonitor>
         <TimerContext.Provider value={this.state.timeSinceLastDataUpdate}>

@@ -86,7 +86,9 @@ function getInitialConfig(args) {
     };
 
     /* override any sample - barcode links via a provided barcodes CSV file */
-    const barcodeFile = findConfigFile(pathCascade, BARCODES_TO_SAMPLE_FILENAME);
+    const barcodeFile = args.sampleSheet
+        ? getAbsolutePath(args.sampleSheet, {relativeTo: process.cwd()})
+        : findConfigFile(pathCascade, BARCODES_TO_SAMPLE_FILENAME);
     if (barcodeFile) {
         setBarcodesFromFile(config, barcodeFile);
     }

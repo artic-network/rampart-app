@@ -17,7 +17,7 @@ const electron = require('electron');
 const app = electron.app;
 // Module to create native browser window.
 const BrowserWindow = electron.BrowserWindow;
-const { ipcMain, dialog } = electron;
+const { ipcMain, dialog, Menu, MenuItem } = electron;
 
 const path = require('path');
 const url = require('url');
@@ -100,6 +100,7 @@ async function startServer(settings, sendStatus) {
         protocol: settings.protocol,
         title: settings.title,
         referencesPath: settings.referencesPath,
+        sampleSheet: settings.sampleSheet,
         clearAnnotated: settings.clearAnnotated || false
     };
     
@@ -233,6 +234,32 @@ function createWindow(showSettings = true) {
             console.error('Window became unresponsive');
         });
 
+        mainWindow.on('close', function (e) {
+            if (!serverStarted) return; // no confirmation needed before server starts
+            e.preventDefault();
+            const browserUrl = `http://localhost:${serverPort}`;
+            dialog.showMessageBox(mainWindow, {
+                type: 'question',
+                buttons: ['Quit RAMPART', 'Keep Running', 'Open in Browser', 'Cancel'],
+                defaultId: 1,
+                cancelId: 3,
+                title: 'Close RAMPART',
+                message: 'RAMPART is running',
+                detail: `Quitting will stop all processing.\n\n"Keep Running" will close this window but keep RAMPART running in the background — use the menu or Cmd+0 to reopen the window.\n\nRAMPART is also accessible in any web browser at:\n${browserUrl}`,
+            }).then(({ response }) => {
+                if (response === 0) {
+                    mainWindow.destroy();
+                    app.quit();
+                } else if (response === 1) {
+                    mainWindow.hide();
+                } else if (response === 2) {
+                    electron.shell.openExternal(browserUrl);
+                    mainWindow.hide();
+                }
+                // response === 3: Cancel — do nothing
+            });
+        });
+
         mainWindow.on('closed', function () {
             mainWindow = null;
         });
@@ -323,6 +350,7 @@ ipcMain.on('show-settings', () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on('ready', async () => {
+    buildMenu();
     // Pre-flight check: verify Python and mappy are available
     const pyCheck = await checkPythonEnvironment();
     if (!pyCheck.ok) {
@@ -353,17 +381,71 @@ app.on('ready', async () => {
 });
 
 app.on('activate', function () {
-    // On OS X it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
     if (mainWindow === null) {
-        createWindow();
+        createWindow(!serverStarted);
+    } else {
+        mainWindow.show();
+        mainWindow.focus();
     }
 });
 
-// Clean up on quit
+// Prevent auto-quit when all windows are closed — user chose "Keep Running"
 app.on('window-all-closed', (e) => {
     e.preventDefault();
 });
+
+function buildMenu() {
+    const template = [
+        ...(process.platform === 'darwin' ? [{
+            label: app.name,
+            submenu: [
+                { role: 'about' },
+                { type: 'separator' },
+                { role: 'services' },
+                { type: 'separator' },
+                { role: 'hide' },
+                { role: 'hideOthers' },
+                { role: 'unhide' },
+                { type: 'separator' },
+                { role: 'quit' }
+            ]
+        }] : []),
+        {
+            label: 'Window',
+            submenu: [
+                {
+                    label: 'Show Window',
+                    accelerator: 'CmdOrCtrl+0',
+                    click: () => {
+                        if (mainWindow === null) {
+                            createWindow(!serverStarted);
+                        } else {
+                            mainWindow.show();
+                            mainWindow.focus();
+                        }
+                    }
+                },
+                { type: 'separator' },
+                { role: 'minimize' },
+                { role: 'zoom' },
+                ...(process.platform === 'darwin' ? [{ type: 'separator' }, { role: 'front' }] : [])
+            ]
+        },
+        {
+            label: 'Edit',
+            submenu: [
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' },
+                { role: 'selectAll' }
+            ]
+        }
+    ];
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
 
 // Explicitly prevent app from autoquitting
 if (process.platform === 'darwin') {
