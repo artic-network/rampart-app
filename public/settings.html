@@ -100,7 +100,7 @@
         .browse-btn {
             padding: 7px 14px;
             background: #E06961;
-            color: #fffcf2; /* articWhite */
+            color: #F6EECA; /* articWhite */
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -153,7 +153,7 @@
         
         .btn-primary {
             background: #22968B; /* articGreenLight */
-            color: #fffcf2; /* articWhite */
+            color: #F6EECA; /* articWhite */
         }
         
         .btn-primary:hover {
@@ -186,13 +186,13 @@
         
         .status-message.error {
             background: #803c38; /* articRedDark */
-            color: #fffcf2; /* articWhite */
+            color: #F6EECA; /* articWhite */
             border: 1px solid #e06962; /* articRed */
         }
         
         .status-message.success {
             background: #22968B; /* articGreenLight */
-            color: #fffcf2; /* articWhite */
+            color: #F6EECA; /* articWhite */
             border: 1px solid #2aa89c;
         }
         
@@ -231,6 +231,34 @@
             </div>
             
             <div class="form-group">
+                <label for="protocol">Protocol Directory</label>
+                <span class="help-text">Path to protocol directory (optional)</span>
+                <div class="path-input-group">
+                    <input type="text" id="protocol" name="protocol" placeholder="Leave empty for default protocol">
+                    <button type="button" class="browse-btn" onclick="browsePath('protocol')">Browse</button>
+                </div>
+            </div>
+            
+
+            <div class="form-group">
+                <label for="referencesPath">References FASTA File</label>
+                <span class="help-text">Path to reference sequences panel (required if not in protocol directory)</span>
+                <div class="path-input-group">
+                    <input type="text" id="referencesPath" name="referencesPath" placeholder="e.g., references.fasta">
+                    <button type="button" class="browse-btn" onclick="browsePath('referencesPath', true)">Browse</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="sampleSheet">Sample Sheet (CSV)</label>
+                <span class="help-text">CSV file with 'sample' and 'barcode' columns mapping barcodes to sample names</span>
+                <div class="path-input-group">
+                    <input type="text" id="sampleSheet" name="sampleSheet" placeholder="e.g., barcodes.csv">
+                    <button type="button" class="browse-btn" onclick="browsePath('sampleSheet', true)">Browse</button>
+                </div>
+            </div>
+                
+            <div class="form-group">
                 <label for="annotatedPath">Output Directory</label>
                 <span class="help-text">Where annotation CSV files will be saved (default: ./annotations)</span>
                 <div class="path-input-group">
@@ -240,47 +268,20 @@
             </div>
             
             <div class="form-group">
-                <label for="protocol">Protocol Directory</label>
-                <span class="help-text">Path to protocol directory containing pipelines.json, genome.json etc. (optional if pipelines.json exists in the current working directory)</span>
-                <div class="path-input-group">
-                    <input type="text" id="protocol" name="protocol" placeholder="Leave empty for default protocol">
-                    <button type="button" class="browse-btn" onclick="browsePath('protocol')">Browse</button>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="clearAnnotated" name="clearAnnotated">
+                    <label for="clearAnnotated" style="margin-bottom: 0;">Clear existing annotations on startup</label>
                 </div>
+                <span class="help-text">Remove annotation files present when RAMPART starts</span>
             </div>
             
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="verbose" name="verbose">
+                    <label for="verbose" style="margin-bottom: 0;">Verbose logging</label>
+                </div>
+            </div>
 
-                <div class="form-group">
-                    <label for="referencesPath">References FASTA File</label>
-                    <span class="help-text">Path to reference sequences panel</span>
-                    <div class="path-input-group">
-                        <input type="text" id="referencesPath" name="referencesPath" placeholder="e.g., references.fasta">
-                        <button type="button" class="browse-btn" onclick="browsePath('referencesPath', true)">Browse</button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="sampleSheet">Sample Sheet (CSV)</label>
-                    <span class="help-text">CSV file with 'sample' and 'barcode' columns mapping barcodes to sample names</span>
-                    <div class="path-input-group">
-                        <input type="text" id="sampleSheet" name="sampleSheet" placeholder="e.g., barcodes.csv">
-                        <button type="button" class="browse-btn" onclick="browsePath('sampleSheet', true)">Browse</button>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="clearAnnotated" name="clearAnnotated">
-                        <label for="clearAnnotated" style="margin-bottom: 0;">Clear existing annotations on startup</label>
-                    </div>
-                    <span class="help-text">Remove annotation files present when RAMPART starts</span>
-                </div>
-                
-                <div class="form-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="verbose" name="verbose">
-                        <label for="verbose" style="margin-bottom: 0;">Verbose logging</label>
-                    </div>
-                </div>
             <div class="button-group">
                 <button type="button" class="btn btn-secondary" onclick="loadDefaults()">Use Defaults</button>
                 <button type="submit" class="btn btn-primary">Start RAMPART</button>
