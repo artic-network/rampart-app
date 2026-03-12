@@ -28,7 +28,14 @@ const sendData = () => {
   /* find time of last data point */
   if (data.combinedData.temporal.length) {
       const t = data.combinedData.temporal[data.combinedData.temporal.length-1].time;
-      global.io.emit("infoMessage", `new data (t=${t}s, ${data.combinedData.mappedCount} mapped, ${data.combinedData.processedCount} processed)`);
+      const payloadBytes = Buffer.byteLength(JSON.stringify(data), 'utf8');
+      const payloadKB = (payloadBytes / 1024).toFixed(1);
+      const temporalCounts = Object.entries(data.dataPerSample)
+          .map(([k, v]) => `${k}:${v.temporal.length}`).join(', ');
+      global.io.emit("infoMessage",
+          `new data (t=${t}s, ${data.combinedData.mappedCount} mapped, ` +
+          `${data.combinedData.processedCount} processed, payload=${payloadKB}KB, ` +
+          `temporal=[${temporalCounts}])`);
   }
   global.io.emit('data', data);
 };

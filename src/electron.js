@@ -234,7 +234,26 @@ function createWindow(showSettings = true) {
         });
 
         mainWindow.webContents.on('render-process-gone', (event, details) => {
-            console.error('Renderer process gone:', details);
+            console.error(`Renderer process gone — reason: ${details.reason}, exitCode: ${details.exitCode}`);
+            // reason 'oom' = out of memory, 'crashed' = V8/GPU crash,
+            // 'killed' = killed by OS (often also OOM), 'clean-exit' = intentional
+            if (details.reason === 'oom' || details.reason === 'killed') {
+                console.error('LIKELY CAUSE: Renderer ran out of memory. Consider reducing data sent per update.');
+            }
+            dialog.showMessageBox({
+                type: 'error',
+                title: 'Display Crashed',
+                message: 'The display window crashed',
+                detail: `Reason: ${details.reason} (exit code ${details.exitCode})\n\nThe RAMPART server is still running. Click Reload to reconnect the display.`,
+                buttons: ['Reload Display', 'Quit RAMPART'],
+                defaultId: 0
+            }).then(({ response }) => {
+                if (response === 0 && mainWindow) {
+                    mainWindow.reload();
+                } else {
+                    app.quit();
+                }
+            });
         });
 
         mainWindow.on('unresponsive', () => {
@@ -422,11 +441,36 @@ function checkMinimap2() {
     });
 }
 
+// Increase the V8 heap limit for the renderer process.
+// Default is ~1.5GB; 4GB gives more headroom for large datasets.
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096');
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on('ready', () => {
     buildMenu();
     createWindow(true); // Show settings page first
+
+    // Periodically log renderer memory usage to help diagnose crashes with large data
+    setInterval(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.executeJavaScript(
+                'performance.memory ? JSON.stringify({used: performance.memory.usedJSHeapSize, total: performance.memory.totalJSHeapSize, limit: performance.memory.jsHeapSizeLimit}) : null'
+            ).then((result) => {
+                if (result) {
+                    const m = JSON.parse(result);
+                    const usedMB  = (m.used  / 1048576).toFixed(0);
+                    const limitMB = (m.limit / 1048576).toFixed(0);
+                    const pct = ((m.used / m.limit) * 100).toFixed(0);
+                    if (parseInt(pct) > 70) {
+                        console.warn(`[renderer] heap ${usedMB}MB / ${limitMB}MB (${pct}%) — high memory usage`);
+                    } else {
+                        console.log(`[renderer] heap ${usedMB}MB / ${limitMB}MB (${pct}%)`);
+                    }
+                }
+            }).catch(() => {});
+        }
+    }, 30000); // every 30s
 });
 
 app.on('activate', function () {

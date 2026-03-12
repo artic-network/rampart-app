@@ -85,13 +85,27 @@ class App extends Component {
     //   this.setState({mainPage: "chooseBasecalledDirectory"});
     // });
     socket.on("infoMessage", (infoMessage) => {
+      // Cap infoMessages to prevent unbounded memory growth in the renderer
+      const MAX_INFO_MESSAGES = 200;
       const infoMessages = [...this.state.infoMessages];
       infoMessages.push([getTimeNow(), infoMessage]);
+      if (infoMessages.length > MAX_INFO_MESSAGES) infoMessages.splice(0, infoMessages.length - MAX_INFO_MESSAGES);
       this.setState({infoMessages});
     });
     socket.on("data", (response) => {
-      console.log("App got new data", response);
       const { dataPerSample, combinedData} = response;
+      // Debug: log payload characteristics to help diagnose renderer crashes
+      const payloadStr = JSON.stringify(response);
+      const payloadKB = (payloadStr.length / 1024).toFixed(1);
+      const temporalSizes = Object.entries(dataPerSample)
+          .map(([k, v]) => `${k}:${v.temporal ? v.temporal.length : 0}`).join(', ');
+      console.log(
+          `[data] payload=${payloadKB}KB, samples=${Object.keys(dataPerSample).length}, ` +
+          `temporal=[${temporalSizes}], ` +
+          `combinedTemporal=${combinedData.temporal ? combinedData.temporal.length : 0}, ` +
+          `heapUsed=${performance.memory ? (performance.memory.usedJSHeapSize/1048576).toFixed(1)+'MB' : 'n/a'}, ` +
+          `heapLimit=${performance.memory ? (performance.memory.jsHeapSizeLimit/1048576).toFixed(1)+'MB' : 'n/a'}`
+      );
       this.setState({
         dataPerSample,
         combinedData,
