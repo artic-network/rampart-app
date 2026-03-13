@@ -11,8 +11,8 @@ const SamplePanelContainer = styled.div`
     border-radius: 5px;
     border-left: 5px solid ${(props) => props.sampleColour};
     overflow: hidden;
-    height: ${(props) => props.panelExpanded ? "370px" : "30px"};
-    min-height: ${(props) => props.panelExpanded ? "370px" : "30px"};
+    height: ${(props) => props.panelExpanded ? "350px" : "22px"};
+    min-height: ${(props) => props.panelExpanded ? "350px" : "22px"};
 
     > .infoRow {
         display: flex;
@@ -22,11 +22,11 @@ const SamplePanelContainer = styled.div`
     > .infoRow > span,
     > .infoRow > div {
         font-weight: normal;
-        font-size: 1.3em;
+        font-size: 0.95em;
     }
     > .infoRow > *:first-child {
-        padding-top: 2px;
-        padding-left: 10px;
+        padding-top: 1px;
+        padding-left: 8px;
         flex-basis: 15%; /* it's a child of a flexbox */
         display: flex; /* to align the icon & text nicely */
         align-items: center;
@@ -45,13 +45,13 @@ export const ChartContainer = styled.div`
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: space-between;
-    height: calc(100% - 26px);
+    height: calc(100% - 20px);
 `;
 
 export const ExpandIconContainer = styled.div`
     color: ${(props) => props.theme.themeTextColour};
     position: absolute;
-    top: 5px;
+    top: 3px;
     right: 5px;
     cursor: pointer;
     transform: scale(1.3);

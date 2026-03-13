@@ -11,7 +11,7 @@ const HeaderContainer = styled.div`
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    min-height: 155px;
+    min-height: 60px;
 
     /* Following transferred from the rampart.css -- can be turned into
     styled components as desired */
@@ -30,7 +30,7 @@ const HeaderContainer = styled.div`
         flex-direction: column;
         justify-content: flex-start;
         margin-left: auto;
-        padding: 20px 10px 20px 0;
+        padding: 5px 10px 5px 0;
         min-width: 125px;
     }
     h3 {

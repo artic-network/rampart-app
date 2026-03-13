@@ -58,24 +58,24 @@ class Header extends React.Component {
 
         <div className="logo">
           <a href="http://artic.network" target="_blank" rel="noopener noreferrer">
-            <img src={logo} alt={"logo"} width="96"/>
+            <img src={logo} alt={"logo"} width="48"/>
           </a>
         </div>
 
         <div className="title">
-          <h2 style={{marginTop: "0px", marginBottom: "8px"}}>
-            <span style={{fontSize: "1.8em", fontWeight: "normal"}}>RAMPART</span>
-            <span style={{fontWeight: "100"}}> Read Assignment, Mapping, and Phylogenetic Analysis in Real Time</span>
-          </h2>
-
-          <h3>{`Experiment: ${this.props.config.run ? `${this.props.config.run.title}` : "untitled"}`}</h3>
+          <h3 style={{marginTop: "4px"}}>{`Experiment: ${this.props.config.run ? `${this.props.config.run.title}` : "untitled"}`}</h3>
           <TimerContext.Consumer>
             {(timeSinceLastDataUpdate) => (
               <RunSummary timeSinceLastDataUpdate={timeSinceLastDataUpdate} combinedData={this.props.combinedData}/>
             )}
           </TimerContext.Consumer>
-          <MessageLog messages={this.props.infoMessages}/>
-          <PipelineLog socket={this.props.socket} />
+          {/* MessageLog and PipelineLog hidden by default; enable via config.run.showMessagePanels */}
+          {this.props.config.run && this.props.config.run.showMessagePanels && (
+            <>
+              <MessageLog messages={this.props.infoMessages}/>
+              <PipelineLog socket={this.props.socket} />
+            </>
+          )}
         </div>
 
         <div className="buttons">
