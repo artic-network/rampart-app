@@ -366,13 +366,10 @@ ipcMain.on('start-server', async (event, settings) => {
             loadMainApp();
         }, 2000);
     } else {
-        sendStatus('❌ FAILED to start server');
-        sendStatus('See error messages above');
-        // Error page is already shown with the log in the loading screen
-        // Just update it with a back button
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const errorMsg = lastServerError || 'Unknown error occurred. Check the log above.';
-        mainWindow.loadURL(`data:text/html,<html><body style="font-family: sans-serif; padding: 40px; background: #1a1a1a; color: #fffcf2;"><h1 style="color: #e06962;">Error Starting RAMPART</h1><p style="margin: 20px 0; font-size: 16px; line-height: 1.6; background: #803c38; padding: 15px; border-radius: 4px; border: 1px solid #e06962;">${errorMsg}</p><button onclick="window.location.reload()" style="padding: 12px 24px; background: #22968B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 20px;">Try Again</button></body></html>`);
+        sendStatus('❌ FAILED to start server — returning to settings...');
+        // Navigate back to the settings page; it will pick up lastServerError via get-startup-error
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        mainWindow.loadFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), '../build/settings.html'));
     }
 });
 
@@ -381,6 +378,13 @@ ipcMain.on('show-settings', () => {
     if (mainWindow) {
         mainWindow.loadFile(path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), '../build/settings.html'));
     }
+});
+
+// Return the last startup error to the settings page and clear it
+ipcMain.handle('get-startup-error', () => {
+    const err = lastServerError;
+    lastServerError = null;
+    return err;
 });
 
 // ── Log window IPC ────────────────────────────────────────────────────────────

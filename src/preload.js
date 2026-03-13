@@ -31,4 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         });
     },
     openLogWindow: () => ipcRenderer.send('open-log-window'),
+
+    // Retrieve and clear the last startup error (shown on settings page after a failed start)
+    getStartupError: () => ipcRenderer.invoke('get-startup-error'),
 });

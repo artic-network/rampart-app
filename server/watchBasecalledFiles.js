@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const { sleep, verbose, log, warn } = require('./utils');
 const { makeFileSortFunction } = require("./startUp");
+const { getBarcodesInConfig } = require('./config/helpers');
 
 
 const newFastqFileHandler = (fileInfo) => {
@@ -29,8 +30,21 @@ const newFastqFileHandler = (fileInfo) => {
       warn(`Detected "new" FASTQ ${fileInfo.filesSeenName} which has already been seen!`)
       return;
     }
-    verbose("fastq watcher", `new basecalled file => adding "${fileInfo.filesSeenName}" to annotation queue.`);
 
+    // If a sample sheet was provided, only process files whose barcode directory
+    // is explicitly listed. Unclassified and unlisted barcodes are ignored.
+    const configuredBarcodes = getBarcodesInConfig(global.config);
+    if (configuredBarcodes.size > 0) {
+      const barcodeDir = fileInfo.subdir.split(path.sep)[0];
+      if (!configuredBarcodes.has(barcodeDir)) {
+        verbose("fastq watcher", `Skipping "${fileInfo.filesSeenName}" — barcode "${barcodeDir}" not in sample sheet`);
+        global.filesSeen.add(fileInfo.filesSeenName); // mark seen so we don't re-check
+        return;
+      }
+    }
+
+
+    verbose("fastq watcher", `new basecalled file => adding "${fileInfo.filesSeenName}" to annotation queue.`);
     global.pipelineRunners.annotation.addToQueue({
       input_path: fileInfo.dir,
       output_path: path.join(global.config.run.annotatedPath, fileInfo.subdir),

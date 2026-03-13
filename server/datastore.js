@@ -92,8 +92,15 @@ Datastore.prototype.addAnnotatedSetOfReads = function(fileNameStem, annotations)
     this.updateTimestamp(reads);
 
     /* have we observed any barcodes here which _aren't_ in the config? */
+    const configuredBarcodes = getBarcodesInConfig(global.config);
+    const hasSampleSheet = configuredBarcodes.size > 0;
     let newBarcodesObserved = false;
-    [...barcodes].filter((b) => !getBarcodesInConfig(global.config).has(b)).forEach((barcode) => {
+    [...barcodes].filter((b) => !configuredBarcodes.has(b)).forEach((barcode) => {
+        if (hasSampleSheet) {
+            /* sample sheet was provided — ignore barcodes not listed in it */
+            verbose("datastore", `Ignoring barcode ${barcode} — not in sample sheet`);
+            return;
+        }
         verbose("datastore", `New barcode observed: ${barcode}`);
         /* create a sample in the config (should be a function) */
         global.config.run.samples.push({
@@ -110,7 +117,9 @@ Datastore.prototype.addAnnotatedSetOfReads = function(fileNameStem, annotations)
     i.e. it represents a summary of `this.reads` given the current barcode-sample mapping.
     We do this "per barcode" */
     const referencesSeen = new Set();
-    [...barcodes].forEach((barcode) => {
+    [...barcodes]
+        .filter((barcode) => !hasSampleSheet || configuredBarcodes.has(barcode))
+        .forEach((barcode) => {
 
         const barcodeReads = reads.filter((d) => d.barcode === barcode);
         const sampleName = this.getSampleName(barcode);

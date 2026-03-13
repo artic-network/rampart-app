@@ -337,6 +337,23 @@
             }).catch(err => {
                 console.error('Failed to load settings:', err);
             });
+
+            // Check if we just returned from a failed startup attempt
+            if (window.electronAPI.getStartupError) {
+                window.electronAPI.getStartupError().then(err => {
+                    if (err) {
+                        const statusEl = document.getElementById('statusMessage');
+                        statusEl.innerHTML =
+                            '<strong>\u26a0\ufe0f Failed to start RAMPART</strong><br><br>' +
+                            '<span style="font-family: monospace; font-size: 12px; white-space: pre-wrap;">' +
+                            err.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+                            '</span><br><br>Please correct the settings below and try again.';
+                        statusEl.className = 'status-message error';
+                        statusEl.style.display = 'block';
+                        statusEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }).catch(() => {});
+            }
         });
         
         // Handle form submission
