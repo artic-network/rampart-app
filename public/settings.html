@@ -282,6 +282,12 @@
                 </div>
             </div>
 
+            <div class="form-group">
+                <label for="port">Server Port</label>
+                <span class="help-text">Port for the RAMPART server (default: 3555). Change if another program is using this port.</span>
+                <input type="text" id="port" name="port" placeholder="3555" style="max-width: 120px;">
+            </div>
+
             <div class="button-group">
                 <button type="button" class="btn btn-secondary" onclick="loadDefaults()">Use Defaults</button>
                 <button type="submit" class="btn btn-primary">Start RAMPART</button>
@@ -307,6 +313,7 @@
             document.getElementById('sampleSheet').value = '';
             document.getElementById('clearAnnotated').checked = false;
             document.getElementById('verbose').checked = false;
+            document.getElementById('port').value = '3555';
         }
         
         function showMessage(message, type) {
@@ -333,6 +340,7 @@
                     if (settings.sampleSheet) document.getElementById('sampleSheet').value = settings.sampleSheet;
                     if (settings.clearAnnotated) document.getElementById('clearAnnotated').checked = settings.clearAnnotated;
                     if (settings.verbose) document.getElementById('verbose').checked = settings.verbose;
+                    document.getElementById('port').value = settings.port || '3555';
                 }
             }).catch(err => {
                 console.error('Failed to load settings:', err);
@@ -379,7 +387,8 @@
                 referencesPath: document.getElementById('referencesPath').value || undefined,
                 sampleSheet: document.getElementById('sampleSheet').value || undefined,
                 clearAnnotated: document.getElementById('clearAnnotated').checked,
-                verbose: document.getElementById('verbose').checked
+                verbose: document.getElementById('verbose').checked,
+                port: parseInt(document.getElementById('port').value, 10) || 3555
             };
             
             showMessage('Starting RAMPART server...', 'success');

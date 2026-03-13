@@ -20,12 +20,8 @@ const { initialConnection, setUpIOListeners } = require("./socket");
 const { log, warn, fatal } = require("./utils");
 
 const portInUse = (port) => {
-    fatal(
-        `\nPort ${port} is currently in use by another program. 
-You must either close that program or specify a different port by setting the shell variable
-"$PORT". Note that on MacOS / Linux, "lsof -n -i :${port} | grep LISTEN" should
-identify the process currently using the port.
-  `);
+    // Throw so the caller's Promise/try-catch can handle it gracefully
+    throw new Error(`Port ${port} is already in use. Please close the other program using port ${port} and try again.`);
 };
 
 /**
@@ -78,16 +74,19 @@ const run = async ({devClient, ports, buildPath}) => {
             /* API call for the client served by this rampart.js to know what socket to connect on */
             res.json({socketPort})
         });
-        app.listen(app.get('port'), () => {
-            log(`\n---------------------------------------------------------------------------`);
-            log(`Serving built bundle at http://localhost:${serverPort}`);
-            log(`---------------------------------------------------------------------------\n`);
-        }).on('error', (err) => {
-            if (err.code === 'EADDRINUSE') {
-                portInUse(serverPort);
-            } else {
-                fatal(`Uncaught error in app.listen(). Code: ${err.code}`);
-            }
+        await new Promise((resolve, reject) => {
+            app.listen(app.get('port'), () => {
+                log(`\n---------------------------------------------------------------------------`);
+                log(`Serving built bundle at http://localhost:${serverPort}`);
+                log(`---------------------------------------------------------------------------\n`);
+                resolve();
+            }).on('error', (err) => {
+                if (err.code === 'EADDRINUSE') {
+                    reject(new Error(`Port ${serverPort} is already in use. Please close the other program using port ${serverPort} and try again.`));
+                } else {
+                    reject(new Error(`Failed to start server on port ${serverPort}: ${err.message}`));
+                }
+            });
         });
 
     }

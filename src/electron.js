@@ -337,6 +337,13 @@ ipcMain.on('start-server', async (event, settings) => {
     // Save settings for next time
     userSettings = settings;
     saveSettings(settings);
+
+    // Apply port from settings (defaults to 3555)
+    if (settings.port && Number.isInteger(settings.port) && settings.port > 1024 && settings.port < 65535) {
+        serverPort = settings.port;
+    } else {
+        serverPort = 3555;
+    }
     
     // Show loading state with live updates
     mainWindow.loadURL('data:text/html,<html><head><script>window.addEventListener("DOMContentLoaded", () => { if (window.electronAPI) { window.electronAPI.onStatusUpdate((msg) => { const log = document.getElementById("log"); if (log) { log.innerHTML += "<div>" + msg + "</div>"; log.scrollTop = log.scrollHeight; } }); } });</script></head><body style="font-family: monospace; margin: 0; padding: 20px; background: #1a1a1a; color: #22968B;"><h2 style="color: #F6EECA; margin-bottom: 10px;">Starting RAMPART...</h2><div id="log" style="font-size: 12px; line-height: 1.6; max-height: 80vh; overflow-y: auto; white-space: pre-wrap;"></div></body></html>');
