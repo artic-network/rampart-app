@@ -78,6 +78,7 @@ const initialConnection = (socket) => {
   sendConfig();
   sendData();
   sendCurrentPipelineStatuses();
+  socket.emit('pauseState', {paused: !!global.paused});
 };
 
 /** When a client connects then set up listeners so that the server can react
@@ -92,6 +93,16 @@ const setUpIOListeners = (socket) => {
     });
     socket.on('terminatePostProcessing', ({key}) => {
         global.pipelineRunners[key].terminateCurrentlyRunningJob();
+    });
+    socket.on('pause', () => {
+        global.paused = true;
+        Object.values(global.pipelineRunners).forEach((runner) => runner.pause());
+        global.io.emit('pauseState', {paused: true});
+    });
+    socket.on('resume', () => {
+        global.paused = false;
+        Object.values(global.pipelineRunners).forEach((runner) => runner.resume());
+        global.io.emit('pauseState', {paused: false});
     });
 };
 

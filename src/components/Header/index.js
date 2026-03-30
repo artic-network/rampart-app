@@ -84,6 +84,16 @@ class Header extends React.Component {
               {label}
             </ModernButton>
           ))}
+          {this.props.socket && (
+            <ModernButton onClick={this.props.togglePause} title={this.props.paused ? "Resume processing" : "Pause processing"}>
+              {this.props.paused ? "▶ Resume" : "⏸ Pause"}
+            </ModernButton>
+          )}
+          {this.props.socket && this.props.combinedData && (
+            <ModernButton onClick={this.props.downloadSnapshot} title="Download a self-contained HTML snapshot of all current plots">
+              ⬇ Snapshot
+            </ModernButton>
+          )}
           <ThemeToggle lightMode={this.props.lightMode} onChange={this.props.toggleTheme}/>
         </div>
 
@@ -98,7 +108,10 @@ Header.propTypes = {
   sidebarOpenCB: PropTypes.func.isRequired,
   config: PropTypes.object,
   combinedData: PropTypes.object,
-  infoMessages: PropTypes.array.isRequired
+  infoMessages: PropTypes.array.isRequired,
+  paused: PropTypes.bool,
+  togglePause: PropTypes.func,
+  downloadSnapshot: PropTypes.func
 };
 
 Header.defaultProps = {

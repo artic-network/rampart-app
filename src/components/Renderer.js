@@ -64,6 +64,9 @@ class Renderer extends React.Component {
                         infoMessages={this.props.infoMessages}
                         lightMode={this.state.lightMode}
                         toggleTheme={this.toggleTheme}
+                        paused={this.props.paused}
+                        togglePause={this.props.togglePause}
+                        downloadSnapshot={this.props.downloadSnapshot}
                     />
 
                     <PanelManager

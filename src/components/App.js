@@ -34,19 +34,62 @@ class App extends Component {
       /* `infoMessages` are an array of `[timestamp, message]` of all messages received from the server */
       infoMessages: [[getTimeNow(), "client initialising"]],
       /* `timeSinceLastDataUpdate` An integer number of seconds */
-      timeSinceLastDataUpdate: 0
+      timeSinceLastDataUpdate: 0,
+      /* `paused` reflects whether the server annotation pipeline is paused */
+      paused: false
     };
     /**
      * `setConfig(action)` will trigger the server to update its config (which is the "source of truth")
      * and potentially recompute aspects of the data to be visualised. The client will be notified
      * of such updates via socket signals (see `registerServerListeners` below).
      */
-    this.state.setConfig = (action) => this.state.socket.emit('config', action);
+    this.state.setConfig = (action) => {
+      if (this.state.socket) this.state.socket.emit('config', action);
+    };
+    this.state.togglePause = () => {
+      if (!this.state.socket) return;
+      const newPaused = !this.state.paused;
+      this.state.socket.emit(newPaused ? 'pause' : 'resume');
+    };
+    this.state.downloadSnapshot = () => {
+      const { dataPerSample, combinedData, config } = this.state;
+      if (!dataPerSample || !combinedData) return;
+      const timestamp = new Date().toISOString();
+      fetch('/snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataPerSample, combinedData, config, timestamp })
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Server returned ${res.status}`);
+          return res.blob();
+        })
+        .then((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `rampart-snapshot-${timestamp.replace(/[:.]/g, '-')}.html`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        })
+        .catch((err) => {
+          console.error('Snapshot download failed:', err);
+          this.setState({ warningMessage: `Snapshot download failed: ${err.message}` });
+        });
+    };
     this.state.changePage = (page) => this.setState({mainPage: page});
     this.state.clearWarningMessage = () => this.setState({warningMessage: ""});
   }
 
   componentDidMount() {
+    /* Standalone snapshot mode: data is embedded directly — no socket needed */
+    if (window.__RAMPART_SNAPSHOT__) {
+      const { dataPerSample, combinedData, config } = window.__RAMPART_SNAPSHOT__;
+      this.setState({ dataPerSample, combinedData, config, mainPage: 'viz' });
+      return;
+    }
     /* get the socket port to open */
     if (process.env.NODE_ENV === "development") {
       console.log("Dev mode -- socket opening on 3001. This is hardcoded & cannot be changed");
@@ -119,6 +162,9 @@ class App extends Component {
     });
     socket.on("showWarningMessage", (warningMessage) => {
         this.setState({warningMessage});
+    });
+    socket.on("pauseState", ({paused}) => {
+        this.setState({paused});
     });
   }
 

@@ -76,6 +76,7 @@ class PipelineRunner {
         this._threadsRequested = config.threads_requested || 1;
 
         this._isRunning = false;
+        this._paused = false;
         if (queue) {
             this._onSuccess = onSuccess; // callback
             this._jobQueue = new Deque();
@@ -311,6 +312,7 @@ class PipelineRunner {
      * @private
      */
     async _runJobsInQueue() {
+        if (this._paused) return;
         if (this._jobQueue.length > 0) {
             if (!this._isRunning) {
                 this._isRunning = true;
@@ -367,6 +369,17 @@ class PipelineRunner {
         verbose(`pipeline (${this._name})`, `Killing job (PID: ${this._process.pid})`);
         this._sendMessage("info", "Killing job", getTimeNow());
         kill(this._process.pid, 'SIGKILL');
+    }
+
+    pause() {
+        this._paused = true;
+        this._sendMessage('info', 'Pipeline paused');
+    }
+
+    resume() {
+        this._paused = false;
+        this._sendMessage('info', 'Pipeline resumed');
+        this._runJobsInQueue();
     }
 
 }

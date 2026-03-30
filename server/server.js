@@ -17,6 +17,7 @@ const path = require('path');
 const SocketIO = require('socket.io');
 var portfinder = require('portfinder');
 const { initialConnection, setUpIOListeners } = require("./socket");
+const { buildSnapshot } = require("./snapshotBuilder");
 const { log, warn, fatal } = require("./utils");
 
 const portInUse = (port) => {
@@ -67,12 +68,25 @@ const run = async ({devClient, ports, buildPath}) => {
         const buildDir = buildPath || path.join(__dirname, "..", 'build');
         log(`Serving from build directory: ${buildDir}`);
         app.use(express.static(buildDir));
+        app.use(express.json({ limit: '100mb' }));
         app.get('/', function (req, res) {
             res.sendFile(path.join(buildDir, 'index.html'));
         });
         app.get('/getSocketPort', function (req, res) {
             /* API call for the client served by this rampart.js to know what socket to connect on */
             res.json({socketPort})
+        });
+        app.post('/snapshot', function (req, res) {
+            try {
+                const html = buildSnapshot(req.body, buildDir);
+                const ts = (req.body.timestamp || new Date().toISOString()).replace(/[:.]/g, '-');
+                res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                res.setHeader('Content-Disposition', `attachment; filename="rampart-snapshot-${ts}.html"`);
+                res.send(html);
+            } catch (err) {
+                warn(`Snapshot generation failed: ${err.message}`);
+                res.status(500).json({ error: err.message });
+            }
         });
         await new Promise((resolve, reject) => {
             app.listen(app.get('port'), () => {

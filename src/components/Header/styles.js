@@ -27,11 +27,13 @@ const HeaderContainer = styled.div`
     }
     .buttons {
         display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
         margin-left: auto;
-        padding: 5px 10px 5px 0;
-        min-width: 125px;
+        padding: 4px 10px 4px 0;
+        gap: 4px;
     }
     h3 {
         margin: 2px;
