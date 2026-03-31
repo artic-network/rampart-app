@@ -106,7 +106,7 @@ const run = async ({devClient, ports, buildPath}) => {
     }
 
     /*     S  O  C  K  E  T     */
-    global.io = SocketIO.listen(socketPort);
+    global.io = new SocketIO.Server(socketPort, { cors: { origin: "*" } });
     // TODO - handle EADDRINUSE error. Tried above method & try/catch without success
     global.io.on('connection', (socket) => {
         log('client connection detected');

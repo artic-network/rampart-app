@@ -14,7 +14,8 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import { version } from '../../../package.json';
+import pkg from '../../../package.json';
+const { version } = pkg;
 
 const Container = styled.div`
   width: 80%;
