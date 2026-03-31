@@ -34,7 +34,7 @@
     "js-yaml": "^3.13.1",
     "lodash": "^4.17.15",
     "portfinder": "^1.0.38",
-    "portfinder": "^1.0.32",\n    "prop-types": "^15.7.2",
+    "prop-types": "^15.7.2",
     "rc-slider": "^8.7.1",
     "react": "^16.8.6",
     "react-color": "^2.17.3",
