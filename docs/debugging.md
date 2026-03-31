@@ -1,1 +1,0 @@
-# Debugging common RAMPART errors

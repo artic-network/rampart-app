@@ -1,107 +1,97 @@
 # Installation
 
-
 These instructions assume that you have installed [MinKNOW](https://community.nanoporetech.com/downloads) and are able to run it.
 
 
-## Install from conda
+## Option 1: Desktop app (Electron) — recommended
 
-We also assume that you are using conda -- See [instructions here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install conda on your machine.
+Download the pre-built installer for your platform from the [latest GitHub release](https://github.com/artic-network/rampart-app/releases/latest):
 
-### Step 1: Create a new conda environment or install nodejs into your current conda environment
+| Platform | File |
+|----------|------|
+| macOS (Apple Silicon) | `RAMPART-<version>-arm64.dmg` |
+| macOS (Intel) | `RAMPART-<version>-x64.dmg` |
+| Windows | `RAMPART-Setup-<version>.exe` |
+| Linux | `RAMPART-<version>.AppImage` or `.deb` |
 
-Create a new conda environment and activate it via:
+The Electron app bundles everything needed — no conda, Node.js or Python install required. minimap2 is included for macOS and Windows; on Linux the AppImage is self-contained.
 
-```bash
-conda create -n artic-rampart -y nodejs=12 # any version >10 should be fine
-conda activate artic-rampart
-```
+On **macOS** you may need to allow the app through Gatekeeper on first launch:
+1. Open **System Settings → Privacy & Security**
+2. Scroll down to the security section and click **Open Anyway** next to the RAMPART entry
 
-Or install NodeJS into your currently activated environment via:
-
-```bash
-conda install -y nodejs=12 # any version >10 should be fine
-```
-
-### Step 2: Install RAMPART
-
-```bash
-conda install -y artic-network::rampart=1.1.0
-```
-
-### Step 3: Install dependencies
-
-Note that you may already have some or all of these in your environment, in which case they can be skipped.
-Additionally, some are only needed for certain analyses and can also be skipped as desired.
-
-> If you are installing RAMPART into the [artic-ncov2019](https://github.com/artic-network/artic-ncov2019) conda environment, you will already have all of these dependencies.
+On **Windows** you may see a SmartScreen prompt — click **More info → Run anyway**.
 
 
-Python, biopython, snakemake and minimap2 are required
+## Option 2: Install from source (command-line usage)
 
-```bash
-conda install -y "python>=3.6"
-conda install -y anaconda::biopython 
-conda install -y -c conda-forge -c bioconda "snakemake<5.11" # snakemake 5.11 will not work currently
-conda install -y bioconda::minimap2=2.17
-```
+This approach is suitable for running RAMPART as a command-line tool on a server or for development.
 
-If you are using guppy to demux samples, you don't need Porechop,
-however if you require RAMPART to perform demuxing then you must install the ARTIC fork of Porechop:
+### Requirements
 
-```bash
-python -m pip install git+https://github.com/artic-network/Porechop.git@v0.3.2pre
-```
+- [Node.js](https://nodejs.org/) ≥ 20 (≥ 22 recommended)
+- [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) (recommended for managing Python dependencies)
+- minimap2 ≥ 2.17 (available via `conda install -c bioconda minimap2`)
 
-If you wish to use the post-processing functionality available in RAMPART to bin reads, then you'll need `binlorry`:
-
-```bash
-python -m pip install binlorry==1.3.0_alpha1
-```
-
-### Step 4: Check that it works
-
-```
-rampart --help
-```
-
----
-
-## Install from source
-
-(1) Clone the Github repo 
+### Step 1: Clone the repository
 
 ```bash
 git clone https://github.com/artic-network/rampart-app.git
 cd rampart-app
 ```
 
-(2) Create an activate the conda environment with the required dependencies.
-You can either follow steps 1 & 3 above, or use the provided `environment.yml` file via
+### Step 2: Create and activate the conda environment
 
 ```bash
 conda env create -f environment.yml
 conda activate artic-rampart
 ```
 
-(3) Install dependencies using `npm`
+Or manually install Node.js into an existing environment:
+
+```bash
+conda install -y nodejs  # version >=20
+```
+
+### Step 3: Install Node.js dependencies and build the client
 
 ```bash
 npm install
-```
-
-(4) Build the RAMPART client bundle
-
-```bash
 npm run build
 ```
 
-(5) (optional, but recommended) install rampart globally within the conda environment
-so that it is available via the `rampart` command
+### Step 4: (Optional) Install globally within the conda environment
 
 ```bash
 npm install --global .
 ```
 
-Check that things work by running `rampart --help`
+Verify with:
+
+```bash
+rampart --help
+```
+
+### Step 5: Run RAMPART
+
+```bash
+rampart --protocol /path/to/protocol --basecalledPath /path/to/fastq/pass
+```
+
+Then open [http://localhost:3000](http://localhost:3000) in a browser.
+
+
+## Option 3: Development mode (hot-reloading UI)
+
+Useful when modifying the frontend source code:
+
+```bash
+# Terminal 1 — start the RAMPART server
+node rampart.js --devClient --protocol /path/to/protocol --basecalledPath /path/to/fastq/pass
+
+# Terminal 2 — start the React dev server
+npm run start
+```
+
+Then open [http://localhost:3000](http://localhost:3000). The UI will hot-reload on source changes; server changes still require a server restart.
 
